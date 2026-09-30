@@ -1,0 +1,47 @@
+name: WordPress one-time setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "What to do"
+        type: choice
+        options:
+          - dry-run            # show what would happen, change nothing
+          - publish-and-set-home   # create/update the BPPA pages + make "BPPA" the home page
+          - retire-old-pages   # move every old PPA page to Draft (reversible)
+          - restore-old-pages  # undo retire-old-pages
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      WPCOM_CLIENT_ID:     ${{ secrets.WPCOM_CLIENT_ID }}
+      WPCOM_CLIENT_SECRET: ${{ secrets.WPCOM_CLIENT_SECRET }}
+      WPCOM_USER:          ${{ secrets.WPCOM_USER }}
+      WPCOM_APP_PASSWORD:  ${{ secrets.WPCOM_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - name: Build pages (with this repo's explorer URL)
+        run: >
+          python build/leaderboards.py --data docs --out wp
+          --explorer "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+      - name: Run
+        run: |
+          case "${{ inputs.action }}" in
+            dry-run)               python build/publish_wp.py --dry-run --front-page --retire-old ;;
+            publish-and-set-home)  python build/publish_wp.py --front-page ;;
+            retire-old-pages)      python build/publish_wp.py --retire-old ;;
+            restore-old-pages)     python build/publish_wp.py --restore-old ;;
+          esac
+      - name: Save the list of drafted pages (needed for restore)
+        if: ${{ inputs.action == 'retire-old-pages' }}
+        run: |
+          git config user.name "bppa-bot"; git config user.email "bppa-bot@users.noreply.github.com"
+          git add wp/retired_pages.json && git commit -m "Record retired WordPress pages" && git push || true

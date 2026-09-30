@@ -1,0 +1,72 @@
+name: Nightly BPPA refresh
+
+on:
+  schedule:
+    - cron: "17 10 * 3-11 *"   # 6:17 AM Eastern (EDT), March–November
+  workflow_dispatch:            # "Run workflow" button for manual runs
+    inputs:
+      skip_scrape:
+        description: "Skip Baseball-Reference; just rebuild + publish from the committed CSVs"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Scrape current season from Baseball-Reference
+        if: ${{ !inputs.skip_scrape }}
+        run: python scraper/bref_current.py --out docs
+
+      - name: Build WordPress leaderboard pages
+        run: >
+          python build/leaderboards.py --data docs --out wp
+          --explorer "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+
+      - name: Anchor tests (stop before publishing anything wrong)
+        run: python tests/test_all.py
+
+      - name: Build public explorer
+        run: python build/make_public_explorer.py
+
+      - name: Commit refreshed data (GitHub Pages redeploys on push)
+        run: |
+          git config user.name  "bppa-bot"
+          git config user.email "bppa-bot@users.noreply.github.com"
+          git add docs wp
+          if git diff --cached --quiet; then
+            echo "no data change"
+          else
+            git commit -m "Nightly refresh $(date -u +%F)"
+            git push
+          fi
+
+      - name: Publish pages to WordPress.com
+        env:
+          WPCOM_CLIENT_ID:     ${{ secrets.WPCOM_CLIENT_ID }}
+          WPCOM_CLIENT_SECRET: ${{ secrets.WPCOM_CLIENT_SECRET }}
+          WPCOM_USER:          ${{ secrets.WPCOM_USER }}
+          WPCOM_APP_PASSWORD:  ${{ secrets.WPCOM_APP_PASSWORD }}
+        run: |
+          if [ -z "$WPCOM_CLIENT_ID" ]; then
+            echo "::warning::WordPress secrets not set yet — skipping publish"
+          else
+            python build/publish_wp.py
+          fi

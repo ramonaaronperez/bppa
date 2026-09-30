@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BPPA Explorer</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-1:#fcfcfb; --page:#f9f9f7;
+  --ink-1:#0b0b0b; --ink-2:#52514e; --ink-3:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --accent:#2a78d6; --accent-soft:#cde2fb; --good:#006300;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-3:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --accent:#3987e5; --accent-soft:#184f95; --good:#0ca30c;
+  }
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--page); color:var(--ink-1);
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; }
+header { display:flex; flex-wrap:wrap; align-items:center; gap:14px;
+  padding:10px 16px; background:var(--surface-1); border-bottom:1px solid var(--grid);
+  position:sticky; top:0; z-index:30; }
+header h1 { font-size:16px; margin:0 12px 0 0; font-weight:650; }
+.seg { display:inline-flex; border:1px solid var(--axis); border-radius:8px; overflow:hidden; }
+.seg button { border:0; background:transparent; color:var(--ink-2); padding:5px 14px;
+  font:inherit; cursor:pointer; }
+.seg button.on { background:var(--accent); color:#fff; }
+.ctl { display:flex; align-items:center; gap:5px; color:var(--ink-2); font-size:13px; }
+.ctl input[type=number] { width:74px; }
+input, select, textarea { font:inherit; color:var(--ink-1); background:var(--surface-1);
+  border:1px solid var(--axis); border-radius:6px; padding:4px 7px; }
+input:focus, textarea:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+#search { width:180px; }
+nav.tabs { display:flex; gap:2px; padding:8px 16px 0; }
+nav.tabs button { border:1px solid var(--grid); border-bottom:none; background:transparent;
+  color:var(--ink-2); padding:7px 16px; font:inherit; cursor:pointer; border-radius:8px 8px 0 0; }
+nav.tabs button.on { background:var(--surface-1); color:var(--ink-1); font-weight:600; }
+main { padding:0 16px 40px; }
+.panel { background:var(--surface-1); border:1px solid var(--grid); border-radius:0 8px 8px 8px; padding:12px; }
+.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:10px; }
+.chip { display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft);
+  color:var(--ink-1); border-radius:999px; padding:2px 10px; font-size:12.5px; }
+.chip b { font-weight:600; }
+.chip button { border:0; background:none; cursor:pointer; color:inherit; font-size:14px; padding:0; }
+.dd { position:relative; }
+.dd > button { border:1px solid var(--axis); background:var(--surface-1); color:var(--ink-1);
+  border-radius:6px; padding:4px 10px; font:inherit; cursor:pointer; }
+.dd-panel { position:absolute; top:calc(100% + 4px); left:0; z-index:40; width:240px;
+  background:var(--surface-1); border:1px solid var(--axis); border-radius:8px;
+  box-shadow:0 6px 24px rgba(0,0,0,.18); padding:8px; display:none; }
+.dd.open .dd-panel { display:block; }
+.dd-list { max-height:240px; overflow:auto; margin:6px 0; border:1px solid var(--grid); border-radius:6px; }
+.dd-list label { display:flex; gap:7px; padding:3px 8px; cursor:pointer; }
+.dd-list label:hover { background:var(--page); }
+.dd-actions { display:flex; gap:6px; }
+.dd-actions button { flex:1; border:1px solid var(--axis); background:transparent; color:var(--ink-1);
+  border-radius:6px; padding:4px 0; cursor:pointer; font-size:12.5px; }
+.dd-actions button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+.tblwrap { overflow:auto; max-height:calc(100vh - 240px); border:1px solid var(--grid); border-radius:6px; }
+table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; white-space:nowrap; }
+thead th { position:sticky; top:0; background:var(--surface-1); color:var(--ink-2); font-weight:600;
+  font-size:12.5px; text-align:right; padding:6px 9px; border-bottom:1px solid var(--axis);
+  cursor:pointer; user-select:none; z-index:5; }
+thead th.l, td.l { text-align:left; }
+thead th.sorted { color:var(--accent); }
+tbody td { padding:4px 9px; border-bottom:1px solid var(--grid); text-align:right; font-size:13px; }
+tbody tr:hover { background:color-mix(in srgb, var(--accent) 7%, transparent); }
+tbody tr.total td { font-weight:650; border-top:2px solid var(--axis); background:var(--page); }
+td .plink, td .tlink { color:var(--accent); cursor:pointer; text-decoration:none; }
+td .plink:hover, td .tlink:hover { text-decoration:underline; }
+.hi { color:var(--accent); font-weight:650; }
+.note { color:var(--ink-3); font-size:12px; margin-top:8px; }
+.count { color:var(--ink-2); font-size:12.5px; margin-left:auto; }
+.tiles { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 14px; }
+.tile { background:var(--page); border:1px solid var(--grid); border-radius:8px; padding:8px 14px; min-width:110px; }
+.tile .v { font-size:20px; font-weight:650; }
+.tile .k { font-size:11.5px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.04em; }
+.backlink { color:var(--accent); cursor:pointer; font-size:13px; }
+#status { padding:60px 0; text-align:center; color:var(--ink-2); }
+#status .err { color:#d03b3b; white-space:pre-wrap; }
+button.act { border:1px solid var(--axis); background:transparent; color:var(--ink-1);
+  border-radius:6px; padding:4px 10px; cursor:pointer; font:inherit; font-size:12.5px; }
+textarea#sqlbox { width:100%; min-height:120px; font-family:ui-monospace,Consolas,monospace; font-size:13px; }
+#spark { display:block; margin:4px 0 10px; }
+#tooltip { position:fixed; z-index:99; pointer-events:none; background:var(--ink-1); color:var(--page);
+  border-radius:6px; padding:4px 9px; font-size:12px; display:none; }
+.radio { display:inline-flex; gap:12px; color:var(--ink-2); font-size:13px; }
+h2 { font-size:17px; margin:4px 0 2px; }
+.sub { color:var(--ink-3); font-size:12.5px; margin-bottom:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BPPA Explorer</h1>
+  <div class="seg" id="sideSeg">
+    <button data-side="BAT" class="on">Batters</button>
+    <button data-side="PIT">Pitchers</button>
+  </div>
+  <div class="seg" id="pitStatSeg" style="display:none" title="Which pitcher stat set to show — BPPA always stays on the right">
+    <button data-ps="ba" class="on">Batting Against</button>
+    <button data-ps="std">Standard</button>
+  </div>
+  <span class="ctl">Years <input type="number" id="yrFrom" value="1900" min="1900" max="2030">–<input type="number" id="yrTo" value="2026" min="1900" max="2030"></span>
+  <span class="ctl">Min PA <input type="number" id="minPA" value="502" min="0" step="1"></span>
+  <label class="ctl" title="Include or exclude Negro League rows (leagues NNL, NN2, NAL, ECL, EWL, NSL, ANL) from every view, dropdown and total"><input type="checkbox" id="nglTog" checked> Negro Lg</label>
+  <span class="ctl"><input type="search" id="search" placeholder="Search player / id…"></span>
+  <span class="ctl" id="filterSlots"></span>
+  <span class="count" id="engineInfo"></span>
+</header>
+<div id="chipRow" style="padding:6px 16px 0; display:flex; gap:6px; flex-wrap:wrap;"></div>
+<nav class="tabs" id="tabs">
+  <button data-tab="seasons" class="on">Seasons</button>
+  <button data-tab="careers">Careers</button>
+  <button data-tab="topn">Top Seasons</button>
+  <button data-tab="teams">Teams</button>
+  <button data-tab="sql">SQL</button>
+  <button data-tab="fixes">Fixes</button>
+</nav>
+<main>
+  <div class="panel">
+    <div id="status">Loading DuckDB engine…</div>
+    <div id="content" style="display:none"></div>
+  </div>
+  <p class="note">BPPA = (TB + BB + SB − CS + HBP) / PA, PA rebuilt as AB+BB+HBP+SH+SF (workbook definition).
+  Batters: <b>higher is better</b> · Pitchers: <b>lower is better</b> (bases surrendered).
+  <b>BPPA+</b>: 100 = league average that season, <b>higher = better for both sides</b> (pitchers inverted, ERA+ style);
+  Negro League rows show raw BPPA but no BPPA+ (excluded from baselines by design).
+  Season rows only; incomplete rows (no AB breakdown / 0 PA) excluded. Teams view uses per-team stint attribution.</p>
+</main>
+<div id="tooltip"></div>
+<script type="module">
+import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm";
+
+const $ = s => document.querySelector(s);
+const statusEl = $("#status"), contentEl = $("#content");
+
+const NGL_COND = `(NOT is_ngl)`;  // is_ngl computed in the view chain: league codes + compounds + all-NgL 2LG rows
+const S = {
+  side:"BAT", tab:"seasons", yrFrom:1900, yrTo:2026, minPA:502, search:"", ngl:true,
+  pitStat:"ba", hasPitStd:false, overrides:[],
+  colFilters:{seasons:[], careers:[], topn:[], teams:[]},
+  filters:{},                       // field -> {mode:'in'|'notin', values:[]}
+  sort:{},                          // per tab: {col, dir}
+  topN:3, topMode:"best",           // 'best' | 'consec'
+  topMetric:"bppa", topDir:null,    // Top Seasons ranking column + direction (null = metric default)
+  topMinSpan:null, topMinIP:null,   // span qualification (null = auto: Min PA x N / no IP floor)
+  minCareerPA:3000,
+  drill:null,                       // {type:'player', pid, side} | {type:'team', team, year}
+};
+
+let db, conn;
+
+// ---------- engine + data ----------
+async function boot() {
+  try {
+    const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
+    const workerUrl = URL.createObjectURL(new Blob([`importScripts("${bundle.mainWorker}");`], {type:"text/javascript"}));
+    const worker = new Worker(workerUrl);
+    db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING), worker);
+    await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    URL.revokeObjectURL(workerUrl);
+  } catch (e) {
+    return fail("Could not load the DuckDB engine from the CDN.\nCheck your internet connection, then reload.\n\n" + e);
+  }
+  statusEl.textContent = "Loading data…";
+  const fetchBuf = async fn => {
+    try {
+      const r = await fetch(fn, {cache:"no-store"});
+      if (!r.ok) return null;
+      const b = new Uint8Array(await r.arrayBuffer());
+      return b.length > 50 ? b : null;
+    } catch { return null; }
+  };
+  const pqBuf = await fetchBuf("bppa_data.parquet");
+  if (!pqBuf) return fail("bppa_data.parquet not found next to this page.\nRun make_bppa_data.bat first, then reload.");
+  await db.registerFileBuffer("bppa.parquet", pqBuf);
+  const psBuf = await fetchBuf("bppa_pitstd.parquet");
+  if (psBuf) await db.registerFileBuffer("pitstd.parquet", psBuf);
+  const curB  = await fetchBuf("bppa_current_bat.csv");
+  if (curB)  await db.registerFileBuffer("bppa_current_bat.csv", curB);
+  const curP  = await fetchBuf("bppa_current_pit.csv");
+  if (curP)  await db.registerFileBuffer("bppa_current_pit.csv", curP);
+  const curPS = await fetchBuf("bppa_current_pitstd.csv");
+  if (curPS) await db.registerFileBuffer("bppa_current_pitstd.csv", curPS);
+  try {
+    const r = await fetch("bppa_overrides.json", {cache:"no-store"});
+    if (r.ok) S.overrides = await r.json();
+  } catch {}
+  if (!Array.isArray(S.overrides)) S.overrides = [];
+
+  conn = await db.connect();
+  await conn.query(`CREATE MACRO nz(x) AS COALESCE(TRY_CAST(x AS DOUBLE), 0)`);
+
+  // ---- raw rows: parquet + optional live overlay (only years newer than the parquet) ----
+  const RAW = `side, year, player, player_id, hand, team, lg, row_type, pos, ip, age, g,
+               pa_source, ab, r, h, d2, d3, hr, rbi, sb, cs, bb, so, hbp, sh, sf, incomplete`;
+  let t0sql = `SELECT ${RAW} FROM parquet_scan('bppa.parquet')`;
+  if (curB || curP) {
+    try {
+      await buildCurrentViews(!!curB, !!curP);
+      t0sql += ` UNION ALL BY NAME SELECT ${RAW} FROM cur_rows
+                 WHERE year > (SELECT max(year) FROM parquet_scan('bppa.parquet'))`;
+    } catch (e) { console.warn("live CSV overlay ignored:", e); }
+  }
+  await conn.query(`CREATE VIEW t0 AS ${t0sql}`);
+
+  // ---- data fixes (Fixes tab) patch raw columns; everything below recomputes from them ----
+  await conn.query(`CREATE VIEW t_ov AS ${overrideSQL()}`);
+
+  // ---- derived stats recomputed in-browser so overrides propagate ----
+  await conn.query(`CREATE VIEW t_fix AS
+    SELECT *,
+      CAST(nz(ab)+nz(bb)+nz(hbp)+nz(sh)+nz(sf) AS INTEGER) AS pa,
+      CAST(nz(h)+nz(d2)+2*nz(d3)+3*nz(hr) AS INTEGER)      AS tb
+    FROM t_ov`);
+  await conn.query(`CREATE VIEW t_fix2 AS
+    SELECT *,
+      ((nz(h)-nz(d2)-nz(d3)-nz(hr))+nz(bb)+nz(hbp))*0.25 + nz(d2)*0.5 + nz(d3)*0.75 + nz(hr)
+        + (nz(sb)*0.25) - (nz(cs)*0.2875)                       AS pro,
+      CAST(tb + nz(bb) + nz(sb) - nz(cs) + nz(hbp) AS INTEGER)  AS bases,
+      (incomplete OR pa = 0)                                    AS inc,
+      (NOT regexp_matches(team, '^[0-9]TM$'))                   AS team_row
+    FROM t_fix`);
+  // ---- Negro-League classification: league codes, compound codes ('NAL,NN2'),
+  //      and 2LG combined rows whose stints are ALL Negro-League (e.g. Scales 1923) ----
+  await conn.query(`CREATE VIEW ngl_map AS
+    SELECT side, player_id, year,
+           bool_and(lg IN ${NGLSQL} OR lg LIKE '%,%') AS all_ngl
+    FROM t_fix2 WHERE row_type='stint' AND lg IS NOT NULL
+    GROUP BY side, player_id, year`);
+  await conn.query(`CREATE VIEW t_ngl AS
+    SELECT f.*,
+      CASE WHEN f.lg IS NULL THEN FALSE
+           WHEN f.lg IN ${NGLSQL} THEN TRUE
+           WHEN f.lg LIKE '%,%' THEN TRUE
+           WHEN f.lg = '2LG' THEN COALESCE(m.all_ngl, FALSE)
+           ELSE FALSE END AS is_ngl
+    FROM t_fix2 f LEFT JOIN ngl_map m USING (side, player_id, year)`);
+  await conn.query(`CREATE VIEW t1 AS
+    SELECT * EXCLUDE (incomplete, inc), inc AS incomplete,
+      CASE WHEN inc THEN NULL ELSE pro/pa END              AS p_per_pa,
+      CASE WHEN inc THEN NULL ELSE bases::DOUBLE/pa END    AS bppa
+    FROM t_ngl`);
+  await conn.query(`CREATE VIEW lg_base AS
+    SELECT side, year, sum(bases)::DOUBLE/sum(pa) AS lg_bppa
+    FROM t1 WHERE row_type='season' AND NOT incomplete AND NOT is_ngl
+    GROUP BY side, year`);
+  await conn.query(`CREATE VIEW t AS
+    SELECT x.*, l.lg_bppa,
+      CASE WHEN x.bppa IS NULL OR l.lg_bppa IS NULL OR x.is_ngl THEN NULL
+           WHEN x.side='BAT' THEN 100.0*x.bppa/l.lg_bppa
+           WHEN x.bppa=0 THEN NULL
+           ELSE 100.0*l.lg_bppa/x.bppa END AS bppa_plus
+    FROM t1 x LEFT JOIN lg_base l USING (side, year)`);
+  await conn.query(`CREATE VIEW season AS SELECT * FROM t WHERE row_type='season' AND NOT incomplete`);
+  await conn.query(`CREATE VIEW teamrows AS SELECT * FROM t WHERE team_row AND NOT incomplete`);
+
+  // ---- standard pitching (optional second parquet + optional live overlay) ----
+  S.hasPitStd = false;
+  try {
+    const parts = [];
+    if (psBuf) parts.push(`SELECT * FROM parquet_scan('pitstd.parquet')`);
+    if (curPS) parts.push(psBuf
+      ? `SELECT * FROM (${psTransform("bppa_current_pitstd.csv")})
+         WHERE year > (SELECT max(year) FROM parquet_scan('pitstd.parquet'))`
+      : psTransform("bppa_current_pitstd.csv"));
+    if (parts.length) {
+      await conn.query(`CREATE VIEW pitstd AS ${parts.join(" UNION ALL BY NAME ")}`);
+      await conn.query(`SELECT count(*) FROM pitstd LIMIT 1`);
+      S.hasPitStd = true;
+    }
+  } catch (e) { console.warn("standard pitching unavailable:", e); S.hasPitStd = false; }
+
+  const meta = rows(await conn.query(`SELECT count(*) n, min(year) a, max(year) b FROM t`))[0];
+  let curCount = 0;
+  try { curCount = rows(await conn.query(`SELECT count(*) n FROM t0
+    WHERE year > (SELECT max(year) FROM parquet_scan('bppa.parquet'))`))[0].n; } catch {}
+  S.yrTo = meta.b;
+  $("#yrTo").value = meta.b; $("#yrTo").max = meta.b; $("#yrFrom").max = meta.b;
+  $("#engineInfo").textContent = `${fmtInt(meta.n)} rows · ${meta.a}–${meta.b}`
+    + (curCount ? ` · +${fmtInt(curCount)} live` : "")
+    + (S.hasPitStd ? " · std pitching ✓" : "")
+    + (S.overrides.length ? ` · ${S.overrides.length} fixes` : "");
+  $("#pitStatSeg").style.display = (S.side==="PIT" && S.hasPitStd) ? "" : "none";
+  statusEl.style.display = "none"; contentEl.style.display = "";
+  window.q = q;   // console/debug access to the SQL layer
+  await buildFilterSlots();
+  render();
+}
+// canonical transform for the standard-pitching CSVs (same shape the export SQL bakes into the parquet)
+const psTransform = fn => `SELECT CAST(Year AS INTEGER) AS year, Player AS player, PlayerID AS player_id, Throws AS hand,
+    Team AS team, Lg AS lg, RowType AS row_type, TRY_CAST(Age AS SMALLINT) AS age,
+    TRY_CAST(W AS SMALLINT) AS w, TRY_CAST(L AS SMALLINT) AS l, TRY_CAST("W-L%" AS DOUBLE) AS wl_pct,
+    TRY_CAST(ERA AS DOUBLE) AS era, TRY_CAST(G AS SMALLINT) AS g, TRY_CAST(GS AS SMALLINT) AS gs,
+    TRY_CAST(GF AS SMALLINT) AS gf, TRY_CAST(CG AS SMALLINT) AS cg, TRY_CAST(SHO AS SMALLINT) AS sho,
+    TRY_CAST(SV AS SMALLINT) AS sv, IP AS ip,
+    CAST(COALESCE(TRY_CAST(split_part(IP,'.',1) AS INTEGER),0)*3
+       + COALESCE(TRY_CAST(split_part(IP,'.',2) AS INTEGER),0) AS INTEGER) AS ip_outs,
+    TRY_CAST(H AS INTEGER) AS h, TRY_CAST(R AS INTEGER) AS r, TRY_CAST(ER AS INTEGER) AS er,
+    TRY_CAST(HR AS SMALLINT) AS hr, TRY_CAST(BB AS SMALLINT) AS bb, TRY_CAST(IBB AS SMALLINT) AS ibb,
+    TRY_CAST(SO AS SMALLINT) AS so, TRY_CAST(HBP AS SMALLINT) AS hbp, TRY_CAST(BK AS SMALLINT) AS bk,
+    TRY_CAST(WP AS SMALLINT) AS wp, TRY_CAST(BF AS INTEGER) AS bf,
+    TRY_CAST("ERA+" AS DOUBLE) AS era_plus, TRY_CAST(FIP AS DOUBLE) AS fip, TRY_CAST(WHIP AS DOUBLE) AS whip,
+    TRY_CAST(H9 AS DOUBLE) AS h9, TRY_CAST(HR9 AS DOUBLE) AS hr9, TRY_CAST(BB9 AS DOUBLE) AS bb9,
+    TRY_CAST(SO9 AS DOUBLE) AS so9, TRY_CAST("SO/W" AS DOUBLE) AS so_w, TRY_CAST(WAR AS DOUBLE) AS war
+  FROM read_csv('${fn}', header=true, all_varchar=true, sep=',', quote='"', escape='"')`;
+// overrides (Fixes tab): CASE-patch raw columns per targeted row
+function overrideSQL() {
+  const RAWCOLS = ["side","year","player","player_id","hand","team","lg","row_type","pos","ip","age","g",
+                   "pa_source","ab","r","h","d2","d3","hr","rbi","sb","cs","bb","so","hbp","sh","sf","incomplete"];
+  const TXT = new Set(["player","player_id","hand","team","lg","row_type","pos"]);
+  const byCol = {};
+  for (const o of S.overrides) {
+    if (!RAWCOLS.includes(o.col) || o.col === "side" || o.col === "year") continue;
+    const conds = [`side='${esc(o.side)}'`, `player_id='${esc(o.player_id)}'`, `year=${+o.year|0}`];
+    if (o.team) conds.push(`team='${esc(o.team)}'`);
+    if (o.row_type) conds.push(`row_type='${esc(o.row_type)}'`);
+    let val;
+    if (o.col === "incomplete") val = String(o.value).toLowerCase()==="true" ? "TRUE" : "FALSE";
+    else if (TXT.has(o.col)) val = `'${esc(o.value)}'`;
+    else { const n = Number(o.value); val = Number.isFinite(n) ? String(n) : "NULL"; }
+    (byCol[o.col] ||= []).push(`WHEN ${conds.join(" AND ")} THEN ${val}`);
+  }
+  const sel = RAWCOLS.map(c => byCol[c] ? `CASE ${byCol[c].join(" ")} ELSE ${c} END AS ${c}` : c).join(", ");
+  return `SELECT ${sel} FROM t0`;
+}
+const NGLSQL = `('NNL','NN2','NAL','ECL','EWL','NSL','ANL')`;
+async function buildCurrentViews(hasBat, hasPit) {
+  const csvOpts = `header=true, all_varchar=true, sep=',', quote='"', escape='"'`;
+  const sels = [];
+  if (hasBat) sels.push(
+    `SELECT 'BAT' AS side, CAST(Year AS INTEGER) AS year, Player AS player, PlayerID AS player_id,
+       Bats AS hand, Team AS team, Lg AS lg, RowType AS row_type, Pos AS pos,
+       NULL AS ip, Age AS age, G AS g, R AS r, RBI AS rbi, SO AS so,
+       AB, BB, HBP, SH, SF, H, "2B" AS d2, "3B" AS d3, HR, SB, CS, PA AS pa_src
+     FROM read_csv('bppa_current_bat.csv', ${csvOpts})`);
+  if (hasPit) sels.push(
+    `SELECT 'PIT' AS side, CAST(Year AS INTEGER) AS year, Pitcher AS player, PlayerID AS player_id,
+       Throws AS hand, Tm AS team, NULL AS lg, RowType AS row_type, NULL AS pos,
+       IP AS ip, Age AS age, G AS g, R AS r, NULL AS rbi, SO AS so,
+       AB, BB, HBP, SH, SF, H, "2B" AS d2, "3B" AS d3, HR, SB, CS, PA AS pa_src
+     FROM read_csv('bppa_current_pit.csv', ${csvOpts})`);
+  await conn.query(`CREATE VIEW cur_rows AS
+    WITH unified AS (${sels.join(" UNION ALL ")}),
+    calc AS (SELECT *,
+        nz(AB)+nz(BB)+nz(HBP)+nz(SH)+nz(SF)                    AS pa,
+        nz(H)+nz(d2)+(nz(d3)*2)+(nz(HR)*3)                     AS tb,
+        ((nz(H)-nz(d2)-nz(d3)-nz(HR))+nz(BB)+nz(HBP))*0.25     AS p1,
+        nz(d2)*0.5 AS p2, nz(d3)*0.75 AS p3, nz(HR) AS p4,
+        (nz(SB)*0.25)-(nz(CS)*0.2875)                          AS sbp
+      FROM unified),
+    fin AS (SELECT *, p4+p3+p2+p1+sbp AS pro, tb+nz(BB)+nz(SB)-nz(CS)+nz(HBP) AS bases,
+        (AB IS NULL OR AB='' OR pa=0) AS incomplete
+      FROM calc)
+    SELECT side, year, player, player_id, hand, team, lg, row_type, pos,
+       TRY_CAST(ip AS DOUBLE) AS ip, TRY_CAST(age AS SMALLINT) AS age, TRY_CAST(g AS SMALLINT) AS g,
+       CAST(nz(pa_src) AS INTEGER) AS pa_source, CAST(pa AS INTEGER) AS pa, CAST(nz(AB) AS INTEGER) AS ab,
+       TRY_CAST(r AS SMALLINT) AS r, CAST(nz(H) AS SMALLINT) AS h, CAST(nz(d2) AS SMALLINT) AS d2,
+       CAST(nz(d3) AS SMALLINT) AS d3, CAST(nz(HR) AS SMALLINT) AS hr, TRY_CAST(rbi AS SMALLINT) AS rbi,
+       CAST(nz(SB) AS SMALLINT) AS sb, CAST(nz(CS) AS SMALLINT) AS cs, CAST(nz(BB) AS SMALLINT) AS bb,
+       TRY_CAST(so AS SMALLINT) AS so, CAST(nz(HBP) AS SMALLINT) AS hbp, CAST(nz(SH) AS SMALLINT) AS sh,
+       CAST(nz(SF) AS SMALLINT) AS sf, CAST(tb AS INTEGER) AS tb, CAST(bases AS INTEGER) AS bases,
+       pro, CASE WHEN incomplete THEN NULL ELSE pro/pa END AS p_per_pa,
+       CASE WHEN incomplete THEN NULL ELSE bases/pa END AS bppa,
+       incomplete, (NOT regexp_matches(team,'^[0-9]TM$')) AS team_row
+    FROM fin`);
+}
+function fail(msg){ statusEl.innerHTML = `<div class="err"></div>`; statusEl.querySelector(".err").textContent = msg; }
+
+// Arrow -> plain objects (BigInt-safe)
+function rows(tbl){
+  const out = [];
+  for (const r of tbl) {
+    const o = {};
+    for (const [k,v] of Object.entries(r.toJSON())) o[k] = typeof v === "bigint" ? Number(v) : v;
+    out.push(o);
+  }
+  return out;
+}
+async function q(sql){ return rows(await conn.query(sql)); }
+const esc = s => String(s).replace(/'/g,"''");
+
+// ---------- formatting ----------
+const fmtInt = v => v==null ? "" : Math.round(v).toLocaleString("en-US");
+const fmt = (v,d) => v==null ? "" : Number(v).toFixed(d);
+const fmtRate = v => v==null ? "" : Number(v).toFixed(3).replace(/^0\./,".").replace(/^-0\./,"-.");
+const fmtBppa = v => v==null ? "" : Number(v).toFixed(4);
+const fmtPlus = v => v==null ? "" : Number(v).toFixed(1);
+
+// ---------- WHERE builder ----------
+function whereParts({minPA=null, useSearch=true} = {}) {
+  const w = [`side='${S.side}'`, `year BETWEEN ${S.yrFrom|0} AND ${S.yrTo|0}`];
+  if (!S.ngl) w.push(NGL_COND);
+  if (minPA != null && minPA > 0) w.push(`pa >= ${minPA|0}`);
+  for (const [f,cfg] of Object.entries(S.filters)) {
+    if (!cfg.values.length) continue;
+    if (f === "lg" && S.side === "PIT") continue;
+    const list = cfg.values.map(v => `'${esc(v)}'`).join(",");
+    w.push(cfg.mode === "in" ? `${f} IN (${list})` : `(${f} IS NULL OR ${f} NOT IN (${list}))`);
+  }
+  if (useSearch && S.search.trim()) w.push(searchCond());
+  return w.join(" AND ");
+}
+function searchCond() {
+  if (!S.search.trim()) return null;
+  const s = esc(S.search.trim());
+  return `(player ILIKE '%${s}%' OR player_id ILIKE '%${s}%')`;
+}
+const bppaDir = () => S.side === "BAT" ? "DESC" : "ASC";
+const nglAnd = () => S.ngl ? "" : ` AND ${NGL_COND}`;
+// career/aggregate BPPA+ (NgL rows excluded from the weighted baseline)
+const aggPlus = () => S.side === "BAT"
+  ? `100.0*sum(bases) FILTER (WHERE bppa_plus IS NOT NULL) / NULLIF(sum(lg_bppa*pa) FILTER (WHERE bppa_plus IS NOT NULL),0)`
+  : `100.0*sum(lg_bppa*pa) FILTER (WHERE bppa_plus IS NOT NULL) / NULLIF(sum(bases) FILTER (WHERE bppa_plus IS NOT NULL),0)`;
+const rateCols = `
+  CASE WHEN sum(ab)>0 THEN sum(h)::DOUBLE/sum(ab) ELSE 0 END AS ba,
+  CASE WHEN sum(pa)>0 THEN (sum(h)+sum(bb)+sum(hbp))::DOUBLE/sum(pa) ELSE 0 END AS obp,
+  CASE WHEN sum(ab)>0 THEN sum(tb)::DOUBLE/sum(ab) ELSE 0 END AS slg,
+  (CASE WHEN sum(pa)>0 THEN (sum(h)+sum(bb)+sum(hbp))::DOUBLE/sum(pa) ELSE 0 END
+   + CASE WHEN sum(ab)>0 THEN sum(tb)::DOUBLE/sum(ab) ELSE 0 END) AS ops`;
+
+// ---------- filter dropdowns (isolate / remove) ----------
+const FILTER_FIELDS = [
+  {f:"lg",   label:"League", batOnly:true},
+  {f:"team", label:"Team"},
+  {f:"hand", label:()=> S.side==="BAT" ? "Bats" : "Throws"},
+];
+async function buildFilterSlots() {
+  const host = $("#filterSlots"); host.innerHTML = "";
+  for (const ff of FILTER_FIELDS) {
+    if (ff.batOnly && S.side === "PIT") continue;
+    const label = typeof ff.label === "function" ? ff.label() : ff.label;
+    const dd = document.createElement("span"); dd.className = "dd";
+    dd.innerHTML = `<button>${label} ▾</button>
+      <div class="dd-panel">
+        <input type="search" placeholder="Filter values…" style="width:100%">
+        <div class="dd-list"></div>
+        <div class="dd-actions">
+          <button class="primary" data-act="in">Isolate</button>
+          <button data-act="notin">Remove</button>
+          <button data-act="clear">Clear</button>
+        </div>
+      </div>`;
+    host.appendChild(dd);
+    const btn = dd.firstElementChild, panel = dd.querySelector(".dd-panel"),
+          list = dd.querySelector(".dd-list"), searchIn = panel.querySelector("input");
+    btn.onclick = async e => {
+      e.stopPropagation();
+      document.querySelectorAll(".dd.open").forEach(d => d !== dd && d.classList.remove("open"));
+      dd.classList.toggle("open");
+      if (dd.classList.contains("open")) {
+        const extra = (ff.f === "team" ? ` AND NOT regexp_matches(team,'^[0-9]TM$')` : "")
+                    + (!S.ngl ? ` AND ${NGL_COND}` : "");
+        const vals = await q(`SELECT DISTINCT ${ff.f} v FROM season WHERE side='${S.side}' AND ${ff.f} IS NOT NULL${extra} ORDER BY 1`);
+        const cur = new Set((S.filters[ff.f]?.values) || []);
+        list.innerHTML = vals.map(r =>
+          `<label><input type="checkbox" value="${r.v}" ${cur.has(r.v)?"checked":""}> ${r.v}</label>`).join("");
+      }
+    };
+    searchIn.oninput = () => {
+      const t = searchIn.value.toLowerCase();
+      list.querySelectorAll("label").forEach(l => l.style.display = l.textContent.toLowerCase().includes(t) ? "" : "none");
+    };
+    panel.onclick = e => e.stopPropagation();
+    panel.querySelectorAll(".dd-actions button").forEach(b => b.onclick = () => {
+      const act = b.dataset.act;
+      if (act === "clear") delete S.filters[ff.f];
+      else {
+        const sel = [...list.querySelectorAll("input:checked")].map(i => i.value);
+        if (sel.length) S.filters[ff.f] = {mode:act, values:sel, label};
+        else delete S.filters[ff.f];
+      }
+      dd.classList.remove("open");
+      renderChips(); render();
+    });
+  }
+}
+document.addEventListener("click", () => document.querySelectorAll(".dd.open").forEach(d => d.classList.remove("open")));
+
+// ---------- per-column filters (any displayed column) ----------
+const CAT_COLS  = new Set(["team","lg","hand","pos","row_type"]);
+const TEXT_COLS = new Set(["player","player_id","span","teams"]);
+function clientSort(data, sort) {
+  if (!sort || !sort.col) return data;
+  data.sort((a,b) => {
+    const x=a[sort.col], y=b[sort.col];
+    if (x==null) return 1; if (y==null) return -1;
+    return (x<y?-1:x>y?1:0) * (sort.dir==="DESC"?-1:1);
+  });
+  return data;
+}
+const colConds = tab => (S.colFilters[tab]||[]).map(f => f.sql);
+function renderColChips(tab) {
+  const arr = S.colFilters[tab]||[];
+  const el = document.createElement("span");
+  el.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;align-items:center";
+  el.innerHTML = arr.map((f,i)=>`<span class="chip"><b>${f.human}</b> <button data-i="${i}" title="Clear">×</button></span>`).join("");
+  el.querySelectorAll("button").forEach(b => b.onclick = () => { arr.splice(+b.dataset.i,1); render(); });
+  return el;
+}
+function filterButton(tab, colDefs, catSrc) {
+  const wrap = document.createElement("span"); wrap.className = "dd";
+  const opts = colDefs.filter(c => c.key !== "rk")
+    .map(c => `<option value="${c.key}">${String(c.label).replace(/<[^>]*>/g,"")}</option>`).join("");
+  wrap.innerHTML = `<button class="act">+ Filter ▾</button>
+    <div class="dd-panel" style="width:260px">
+      <select style="width:100%">${opts}</select>
+      <div class="fbody" style="margin-top:6px"></div>
+    </div>`;
+  const btn = wrap.firstElementChild, panel = wrap.querySelector(".dd-panel"),
+        sel = panel.querySelector("select"), body = panel.querySelector(".fbody");
+  const add = f => { (S.colFilters[tab] ||= []).push(f); wrap.classList.remove("open"); render(); };
+  const build = async () => {
+    const key = sel.value, def = colDefs.find(c => c.key===key),
+          label = String(def.label).replace(/<[^>]*>/g,"");
+    if (CAT_COLS.has(key) && catSrc) {
+      const vals = await q(catSrc(key));
+      body.innerHTML = `<input type="search" placeholder="Filter values…" style="width:100%">
+        <div class="dd-list">${vals.map(r=>`<label><input type="checkbox" value="${r.v}"> ${r.v}</label>`).join("")}</div>
+        <div class="dd-actions"><button class="primary" data-m="in">Isolate</button><button data-m="notin">Remove</button></div>`;
+      body.querySelector("input[type=search]").oninput = e => {
+        const t = e.target.value.toLowerCase();
+        body.querySelectorAll(".dd-list label").forEach(l => l.style.display = l.textContent.toLowerCase().includes(t) ? "" : "none");
+      };
+      body.querySelectorAll(".dd-actions button").forEach(b => b.onclick = () => {
+        const values = [...body.querySelectorAll(".dd-list input:checked")].map(i=>i.value);
+        if (!values.length) return;
+        const list = values.map(v=>`'${esc(v)}'`).join(","), inM = b.dataset.m==="in";
+        add({human:`${label} ${inM?"=":"≠"} ${values.join(", ")}`,
+             sql: inM ? `${key} IN (${list})` : `(${key} IS NULL OR ${key} NOT IN (${list}))`});
+      });
+    } else if (TEXT_COLS.has(key)) {
+      body.innerHTML = `<input type="text" placeholder="text contains…" style="width:100%">
+        <div class="dd-actions" style="margin-top:6px"><button class="primary" data-m="in">Include</button><button data-m="out">Exclude</button></div>`;
+      body.querySelectorAll(".dd-actions button").forEach(b => b.onclick = () => {
+        const t = body.querySelector("input").value.trim(); if (!t) return;
+        const inM = b.dataset.m==="in";
+        add({human:`${label} ${inM?"contains":"excludes"} "${t}"`,
+             sql:`${inM?"":"NOT "}(${key} ILIKE '%${esc(t)}%')`});
+      });
+    } else {
+      body.innerHTML = `<div class="ctl" style="margin:4px 0">Min <input type="number" step="any" class="fmin" style="width:100px"></div>
+        <div class="ctl" style="margin:4px 0">Max <input type="number" step="any" class="fmax" style="width:100px"></div>
+        <div class="dd-actions"><button class="primary" data-m="apply">Apply</button></div>`;
+      body.querySelector("[data-m=apply]").onclick = () => {
+        const mn = body.querySelector(".fmin").value, mx = body.querySelector(".fmax").value;
+        if (mn==="" && mx==="") return;
+        const parts=[], hum=[];
+        if (mn!=="") { parts.push(`${key} >= ${+mn}`); hum.push(`≥ ${mn}`); }
+        if (mx!=="") { parts.push(`${key} <= ${+mx}`); hum.push(`≤ ${mx}`); }
+        add({human:`${label} ${hum.join(" & ")}`, sql:`(${parts.join(" AND ")})`});
+      };
+    }
+  };
+  sel.onchange = build;
+  btn.onclick = e => { e.stopPropagation();
+    document.querySelectorAll(".dd.open").forEach(d => d!==wrap && d.classList.remove("open"));
+    wrap.classList.toggle("open"); if (wrap.classList.contains("open")) build(); };
+  panel.onclick = e => e.stopPropagation();
+  return wrap;
+}
+const catSrcSeason = key => `SELECT DISTINCT ${key} v FROM season WHERE side='${S.side}' AND ${key} IS NOT NULL${key==="team" ? " AND NOT regexp_matches(team,'^[0-9]TM$')" : ""}${nglAnd()} ORDER BY 1`;
+const catSrcTeams  = key => `SELECT DISTINCT ${key} v FROM teamrows WHERE side='${S.side}' AND ${key} IS NOT NULL${nglAnd()} ORDER BY 1`;
+function mountFilterUI(tab, cols, catSrc) {
+  const tb = contentEl.querySelector(".toolbar"); if (!tb) return;
+  tb.insertBefore(renderColChips(tab), tb.firstChild);
+  tb.insertBefore(filterButton(tab, cols, catSrc), tb.firstChild);
+}
+function renderChips() {
+  const host = $("#chipRow");
+  host.innerHTML = Object.entries(S.filters).map(([f,c]) =>
+    `<span class="chip"><b>${c.label} ${c.mode==="in"?"=":"≠"}</b> ${c.values.join(", ")}
+     <button data-f="${f}" title="Clear">×</button></span>`).join("");
+  host.querySelectorAll("button").forEach(b => b.onclick = () => { delete S.filters[b.dataset.f]; renderChips(); render(); });
+}
+
+// ---------- table renderer ----------
+function tableHTML(cols, data, sortState, {totalRow=null} = {}) {
+  const th = cols.map(c =>
+    `<th class="${c.left?"l ":""}${sortState && sortState.col===c.key ? "sorted":""}" data-k="${c.key}" ${c.tip?`title="${c.tip}"`:""}>${c.label}${sortState && sortState.col===c.key ? (sortState.dir==="DESC"?" ↓":" ↑"):""}</th>`).join("");
+  const tr = r => "<tr>" + cols.map(c => `<td class="${c.left?"l":""}">${c.render ? c.render(r) : (c.fmt ? c.fmt(r[c.key]) : (r[c.key] ?? ""))}</td>`).join("") + "</tr>";
+  let body = data.map(tr).join("");
+  if (totalRow) body += `<tr class="total">` + cols.map(c => `<td class="${c.left?"l":""}">${c.total ? c.total(totalRow) : ""}</td>`).join("") + "</tr>";
+  return `<div class="tblwrap"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+function bindTable(host, tab, defCol) {
+  host.querySelectorAll("thead th").forEach(th => th.onclick = () => {
+    const k = th.dataset.k, cur = S.sort[tab] || {};
+    if (!k || k === "rk") return;
+    S.sort[tab] = { col:k, dir: cur.col===k && cur.dir==="DESC" ? "ASC" : cur.col===k ? "DESC" : "DESC" };
+    render();
+  });
+  host.querySelectorAll(".plink").forEach(a => a.onclick = () => { S.drill = {type:"player", pid:a.dataset.pid, side:S.side}; render(); });
+  host.querySelectorAll(".tlink").forEach(a => a.onclick = () => { S.drill = {type:"team", team:a.dataset.team, year:+a.dataset.year}; render(); });
+}
+function copyTSV(cols, data) {
+  const lines = [cols.map(c=>c.label).join("\t")]
+    .concat(data.map(r => cols.map(c => c.raw ? c.raw(r) : (r[c.key] ?? "")).join("\t")));
+  navigator.clipboard.writeText(lines.join("\n"));
+}
+const playerCell = {key:"player", label:"Player", left:true,
+  render:r=>`<a class="plink" data-pid="${r.player_id}" title="${r.player_id}">${r.player}</a>`, raw:r=>r.player};
+
+// ---------- views ----------
+const countCols = side => [
+  {key:"g",label:"G",fmt:fmtInt},{key:"ab",label:"AB",fmt:fmtInt},{key:"r",label:"R",fmt:fmtInt},
+  {key:"h",label:"H",fmt:fmtInt},{key:"d2",label:"2B",fmt:fmtInt},{key:"d3",label:"3B",fmt:fmtInt},
+  {key:"hr",label:"HR",fmt:fmtInt},
+  ...(side==="BAT" ? [{key:"rbi",label:"RBI",fmt:fmtInt}] : []),
+  {key:"sb",label:"SB",fmt:fmtInt},{key:"cs",label:"CS",fmt:fmtInt},{key:"bb",label:"BB",fmt:fmtInt},
+  {key:"so",label:"SO",fmt:fmtInt},{key:"hbp",label:"HBP",fmt:fmtInt},{key:"tb",label:"TB",fmt:fmtInt}];
+const rateColsDef = [
+  {key:"ba",label:"BA",fmt:fmtRate},{key:"obp",label:"OBP",fmt:fmtRate},
+  {key:"slg",label:"SLG",fmt:fmtRate},{key:"ops",label:"OPS",fmt:fmtRate}];
+const bppaColsDef = [
+  {key:"bases",label:"Bases",fmt:fmtInt},{key:"pro",label:"PRO",fmt:v=>fmt(v,2),tip:"Fractional-base production (workbook col AI)"},
+  {key:"p_per_pa",label:"P/PA",fmt:v=>fmt(v,4)},
+  {key:"bppa",label:"BPPA",fmt:v=>`<span class="hi">${fmtBppa(v)}</span>`,raw:r=>r.bppa},
+  {key:"bppa_plus",label:"BPPA+",fmt:fmtPlus,tip:"100 = league average; higher = better for both sides. Null for Negro League rows."}];
+
+async function viewSeasons() {
+  const sort = S.sort.seasons || {col:"bppa", dir:bppaDir()};
+  const conds = colConds("seasons");
+  const sc = searchCond();
+  // rank (#) is computed over the full criteria set (incl. column filters) BEFORE the search
+  // filter, so searching a player shows his true all-time rank under the current criteria.
+  // Column filters sit in a wrapper so they can reference computed columns (BA/OBP/SLG/OPS).
+  const cte = `
+    WITH base0 AS (
+      SELECT year, player, player_id, age, team, lg, ip, hand, g, pa, ab, r, h, d2, d3, hr, rbi,
+             sb, cs, bb, so, hbp, tb, bases, pro, p_per_pa, bppa, bppa_plus, is_ngl,
+             CASE WHEN ab>0 THEN h::DOUBLE/ab ELSE 0 END ba,
+             CASE WHEN pa>0 THEN (h+bb+hbp)::DOUBLE/pa ELSE 0 END obp,
+             CASE WHEN ab>0 THEN tb::DOUBLE/ab ELSE 0 END slg,
+             (CASE WHEN pa>0 THEN (h+bb+hbp)::DOUBLE/pa ELSE 0 END + CASE WHEN ab>0 THEN tb::DOUBLE/ab ELSE 0 END) ops
+      FROM season WHERE ${whereParts({minPA:S.minPA, useSearch:false})}),
+    base AS (SELECT * FROM base0 ${conds.length ? `WHERE ${conds.join(" AND ")}` : ""}),
+    ranked AS (SELECT *, row_number() OVER (ORDER BY bppa ${bppaDir()} NULLS LAST) rk FROM base)`;
+  const data = await q(`${cte}
+    SELECT * FROM ranked ${sc ? `WHERE ${sc}` : ""}
+    ORDER BY ${sort.col} ${sort.dir} NULLS LAST, rk LIMIT 500`);
+  const nTot = (await q(`${cte} SELECT count(*) n FROM base`))[0].n;
+  const n = sc ? (await q(`${cte} SELECT count(*) n FROM ranked WHERE ${sc}`))[0].n : nTot;
+  const cols = [
+    {key:"rk",label:"#",fmt:fmtInt,tip:"All-time season rank by BPPA under the current criteria (years, Min PA, filters). Not affected by search or by how the table is sorted."},
+    {key:"year",label:"Year"}, playerCell, {key:"age",label:"Age"},
+    {key:"team",label:"Team",left:true},
+    ...(S.side==="BAT" ? [{key:"lg",label:"Lg",left:true}] : [{key:"ip",label:"IP",fmt:v=>fmt(v,1)}]),
+    {key:"pa",label:"PA",fmt:fmtInt},
+    ...bppaColsDef, ...countCols(S.side), ...rateColsDef,
+  ];
+  contentEl.innerHTML =
+    `<div class="toolbar">
+       <span class="sub">Qualified seasons — default sort ${S.side==="BAT"?"BPPA ↓ (best batters)":"BPPA ↑ (best pitchers)"}. # = all-time BPPA rank among all ${fmtInt(nTot)} seasons matching the current criteria — stable under search and re-sorting. Click any column to sort, any player to drill in.</span>
+       <span class="count">showing ${fmtInt(data.length)} of ${fmtInt(n)}${sc ? ` matches · ranked of ${fmtInt(nTot)}` : ""}</span>
+       <button class="act" id="copyBtn">Copy table (TSV)</button>
+     </div>` + tableHTML(cols, data, sort);
+  $("#copyBtn").onclick = () => copyTSV(cols, data);
+  mountFilterUI("seasons", cols, catSrcSeason);
+  bindTable(contentEl, "seasons");
+}
+
+async function viewCareers() {
+  const sort = S.sort.careers || {col:"bppa", dir:bppaDir()};
+  const where = whereParts({minPA:null});
+  const conds = colConds("careers");
+  const data = await q(`
+    WITH agg AS (
+      SELECT player_id, any_value(player) player, count(*) seasons,
+             min(year) fr, max(year) to_yr, sum(g)::INT g, sum(pa)::INT pa, sum(ab)::INT ab,
+             sum(r)::INT r, sum(h)::INT h, sum(d2)::INT d2, sum(d3)::INT d3, sum(hr)::INT hr,
+             sum(rbi)::INT rbi, sum(sb)::INT sb, sum(cs)::INT cs, sum(bb)::INT bb, sum(so)::INT so,
+             sum(hbp)::INT hbp, sum(tb)::INT tb, sum(bases)::INT bases,
+             sum(bases)::DOUBLE/sum(pa) bppa, ${aggPlus()} bppa_plus, ${rateCols}
+      FROM season WHERE ${where}
+      GROUP BY player_id HAVING sum(pa) >= ${S.minCareerPA|0})
+    SELECT * FROM agg ${conds.length ? `WHERE ${conds.join(" AND ")}` : ""}
+    ORDER BY ${sort.col} ${sort.dir} NULLS LAST LIMIT 500`);
+  const cols = [
+    {key:"rk",label:"#",render:r=>data.indexOf(r)+1},
+    playerCell,
+    {key:"fr",label:"From"},{key:"to_yr",label:"To"},{key:"seasons",label:"Yrs",fmt:fmtInt},
+    {key:"pa",label:"PA",fmt:fmtInt},
+    {key:"bases",label:"Bases",fmt:fmtInt},
+    {key:"bppa",label:"BPPA",fmt:v=>`<span class="hi">${fmtBppa(v)}</span>`,raw:r=>r.bppa},
+    {key:"bppa_plus",label:"BPPA+",fmt:fmtPlus,tip:"PA-weighted vs league baselines (Negro League rows excluded from baseline)"},
+    ...countCols(S.side).filter(c=>c.key!=="g"), {key:"g",label:"G",fmt:fmtInt}, ...rateColsDef,
+  ];
+  contentEl.innerHTML =
+    `<div class="toolbar">
+       <span class="ctl">Min career PA <input type="number" id="minCarPA" value="${S.minCareerPA}" step="500" min="0" style="width:84px"></span>
+       <span class="sub">Career = components summed over season rows in the year range, rates recomputed (never averaged).</span>
+       <span class="count">${fmtInt(data.length)} players</span>
+       <button class="act" id="copyBtn">Copy table (TSV)</button>
+     </div>` + tableHTML(cols, data, sort);
+  $("#minCarPA").onchange = e => { S.minCareerPA = +e.target.value||0; render(); };
+  $("#copyBtn").onclick = () => copyTSV(cols, data);
+  mountFilterUI("careers", cols, catSrcSeason);
+  bindTable(contentEl, "careers");
+}
+
+// ---------- Top Seasons: any metric, any N (best-N or best consecutive-N) ----------
+// Ranking metric is user-chosen; spans aggregate smartly — counting stats sum, rate stats
+// recompute from the summed components, ERA+/FIP are IP-weighted, BPPA+ baseline-weighted.
+const TOP_LIMIT = 300;
+const TOPDIR_BAT = {cs:"ASC", so:"ASC"};
+const TOPDIR_PIT = {bppa:"ASC", p_per_pa:"ASC", bases:"ASC", tb:"ASC", pro:"ASC", h:"ASC", r:"ASC",
+                    d2:"ASC", d3:"ASC", hr:"ASC", rbi:"ASC", bb:"ASC", hbp:"ASC", sb:"ASC",
+                    ba:"ASC", obp:"ASC", slg:"ASC", ops:"ASC"};
+const TOPDIR_STD = {l:"ASC", era:"ASC", h:"ASC", r:"ASC", er:"ASC", hr:"ASC", bb:"ASC", ibb:"ASC",
+                    hbp:"ASC", bk:"ASC", wp:"ASC", whip:"ASC", h9:"ASC", hr9:"ASC", bb9:"ASC",
+                    fip:"ASC", bppa:"ASC", bases:"ASC"};
+const isStdMode = () => S.side === "PIT" && S.pitStat === "std" && S.hasPitStd;
+const topDefaultDir = k =>
+  (isStdMode() ? TOPDIR_STD : S.side === "BAT" ? TOPDIR_BAT : TOPDIR_PIT)[k] || "DESC";
+const TOP_RAW_BPPA = ["g","pa","ab","r","h","d2","d3","hr","rbi","sb","cs","bb","so","hbp","tb","bases"];
+const TOP_SUMS_BPPA = [...TOP_RAW_BPPA, "pro", "adj_lgpa", "adj_bases"];
+const TOP_RAW_STD  = ["w","l","g","gs","gf","cg","sho","sv","ip_outs","h","r","er","hr","bb","ibb",
+                      "so","hbp","bk","wp","bf","war"];
+const TOP_SUMS_STD = [...TOP_RAW_STD, "pa","bases","adj_lgpa","adj_bases","qpa","ep_w","ep_ip","fip_w","fip_ip"];
+// derived expressions — written once, evaluated twice: at season level (to pick the seasons)
+// and again over the span sums (to report the span). Same text works because the span sums
+// are aliased back to the same column names.
+const topDerivedBppa = () => ({
+  bppa:      `CASE WHEN pa>0 THEN bases/pa END`,
+  p_per_pa:  `CASE WHEN pa>0 THEN pro/pa END`,
+  ba:        `CASE WHEN ab>0 THEN h/ab END`,
+  obp:       `CASE WHEN pa>0 THEN (h+bb+hbp)/pa END`,
+  slg:       `CASE WHEN ab>0 THEN tb/ab END`,
+  ops:       `(CASE WHEN pa>0 THEN (h+bb+hbp)/pa ELSE 0 END + CASE WHEN ab>0 THEN tb/ab ELSE 0 END)`,
+  bppa_plus: S.side === "BAT" ? `100.0*adj_bases/NULLIF(adj_lgpa,0)` : `100.0*adj_lgpa/NULLIF(adj_bases,0)`,
+});
+const topDerivedStd = () => ({
+  era:       `CASE WHEN ip_outs>0 THEN 27.0*er/ip_outs END`,
+  whip:      `CASE WHEN ip_outs>0 THEN 3.0*(bb+h)/ip_outs END`,
+  h9:        `CASE WHEN ip_outs>0 THEN 27.0*h/ip_outs END`,
+  hr9:       `CASE WHEN ip_outs>0 THEN 27.0*hr/ip_outs END`,
+  bb9:       `CASE WHEN ip_outs>0 THEN 27.0*bb/ip_outs END`,
+  so9:       `CASE WHEN ip_outs>0 THEN 27.0*so/ip_outs END`,
+  so_w:      `CASE WHEN bb>0 THEN so/bb END`,
+  wl_pct:    `CASE WHEN (w+l)>0 THEN w/(w+l) END`,
+  era_plus:  `ep_w/NULLIF(ep_ip,0)`,
+  fip:       `fip_w/NULLIF(fip_ip,0)`,
+  bppa:      `CASE WHEN pa>0 THEN bases/pa END`,
+  bppa_plus: `100.0*adj_lgpa/NULLIF(adj_bases,0)`,
+});
+
+async function viewTopN() {
+  const std = isStdMode();
+  const N = Math.max(1, Math.min(25, S.topN|0));
+  const mode = S.topMode;
+
+  // ---- column universe + rankable metric list ----
+  const baseCols = std
+    ? [...STD_STAT_COLS, ...STD_BPPA_COLS]
+    : [{key:"pa",label:"PA",fmt:fmtInt}, ...bppaColsDef, ...countCols(S.side), ...rateColsDef];
+  const metrics = std
+    ? [...STD_BPPA_COLS, ...STD_STAT_COLS]
+    : [...bppaColsDef, {key:"pa",label:"PA",fmt:fmtInt}, ...countCols(S.side), ...rateColsDef];
+  if (!metrics.some(m => m.key === S.topMetric)) { S.topMetric = "bppa"; S.topDir = null; }
+  const metric = S.topMetric, dir = S.topDir || topDefaultDir(metric);
+  const metricLabel = String((metrics.find(m => m.key === metric) || {}).label || metric).replace(/<[^>]*>/g,"");
+
+  // ---- per player-year base rows ----
+  const autoSpan = (S.minPA|0) * N;
+  const minSpan = S.topMinSpan == null ? autoSpan : Math.max(0, S.topMinSpan|0);
+  let py, sums, derived, minSpanCond, extraHaving = "";
+  if (!std) {
+    const where = whereParts({minPA:S.minPA});
+    py = `SELECT player_id, any_value(player) player, year, any_value(age) age,
+            array_agg(DISTINCT team) teams_l,
+            ${TOP_RAW_BPPA.map(c => `CAST(sum(${c}) AS DOUBLE) ${c}`).join(", ")},
+            CAST(sum(pro) AS DOUBLE) pro,
+            CAST(sum(CASE WHEN bppa_plus IS NOT NULL THEN lg_bppa*pa END) AS DOUBLE) adj_lgpa,
+            CAST(sum(CASE WHEN bppa_plus IS NOT NULL THEN bases END) AS DOUBLE) adj_bases
+          FROM season WHERE ${where}
+          GROUP BY player_id, year
+          HAVING sum(pa) >= GREATEST(${S.minPA|0},1)`;
+    sums = TOP_SUMS_BPPA; derived = topDerivedBppa();
+    minSpanCond = minSpan > 0 ? `sum(pa) >= ${minSpan}` : "";
+  } else {
+    const w = [`s.row_type='season'`, `s.year BETWEEN ${S.yrFrom|0} AND ${S.yrTo|0}`, ...stdFilterConds("s.")];
+    const sc = searchCond(); if (sc) w.push(sc.replaceAll("player", "s.player"));
+    py = `SELECT s.player_id, any_value(s.player) player, s.year AS year, any_value(s.age) age,
+            array_agg(DISTINCT s.team) teams_l,
+            ${TOP_RAW_STD.map(c => `CAST(sum(s.${c}) AS DOUBLE) ${c}`).join(", ")},
+            CAST(sum(b.pa) AS DOUBLE) pa, CAST(sum(b.bases) AS DOUBLE) bases,
+            CAST(sum(CASE WHEN b.bppa_plus IS NOT NULL THEN b.lg_bppa*b.pa END) AS DOUBLE) adj_lgpa,
+            CAST(sum(CASE WHEN b.bppa_plus IS NOT NULL THEN b.bases END) AS DOUBLE) adj_bases,
+            CAST(COALESCE(sum(b.pa), sum(s.bf), 0) AS DOUBLE) qpa,
+            CAST(sum(s.era_plus*s.ip_outs) FILTER (WHERE s.era_plus IS NOT NULL) AS DOUBLE) ep_w,
+            CAST(sum(s.ip_outs)           FILTER (WHERE s.era_plus IS NOT NULL) AS DOUBLE) ep_ip,
+            CAST(sum(s.fip*s.ip_outs)     FILTER (WHERE s.fip IS NOT NULL) AS DOUBLE) fip_w,
+            CAST(sum(s.ip_outs)           FILTER (WHERE s.fip IS NOT NULL) AS DOUBLE) fip_ip
+          FROM pitstd s
+          LEFT JOIN season b ON b.side='PIT' AND b.player_id=s.player_id AND b.year=s.year
+          WHERE ${w.join(" AND ")}
+          GROUP BY s.player_id, s.year
+          HAVING COALESCE(sum(b.pa), sum(s.bf), 0) >= ${S.minPA|0}`;
+    sums = TOP_SUMS_STD; derived = topDerivedStd();
+    minSpanCond = minSpan > 0 ? `sum(qpa) >= ${minSpan}` : "";
+    if (S.topMinIP) extraHaving = ` AND sum(ip_outs) >= ${Math.round(S.topMinIP*3)}`;
+  }
+
+  // ---- member seasons of each candidate span ----
+  //   best   : the N seasons that rank highest on the metric (one span per player)
+  //   consec : every N-wide window, best one per player kept at the end
+  const derivedSel = Object.entries(derived).map(([k,e]) => `${e} AS ${k}`).join(", ");
+  const sumSel = sums.map(c => `sum(${c}) AS ${c}`).join(", ");
+  const membSQL = mode === "best"
+    ? `SELECT p.*, p.player_id AS gk, 0 AS gk2 FROM
+         (SELECT *, row_number() OVER (PARTITION BY player_id ORDER BY ${metric} ${dir} NULLS LAST) rn
+          FROM pym) p
+       WHERE p.rn <= ${N}`
+    : `SELECT b.*, a.player_id AS gk, a.year AS gk2
+       FROM pym a JOIN pym b ON b.player_id = a.player_id AND b.year BETWEEN a.year-${N-1} AND a.year`;
+  const spanSel = mode === "best"
+    ? `string_agg(year::VARCHAR, ', ' ORDER BY year)`
+    : `min(year)::VARCHAR || '–' || max(year)::VARCHAR`;
+  const conds = colConds("topn");
+  const cte = `
+    WITH py AS (${py}),
+    pym AS (SELECT *, ${derivedSel} FROM py),
+    memb AS (${membSQL}),
+    agg AS (
+      SELECT gk AS player_id, any_value(player) player, count(*) yrs, ${spanSel} span,
+             min(year) y0, max(year) y1, min(age) age_lo, max(age) age_hi,
+             array_to_string(list_sort(list_distinct(flatten(array_agg(teams_l)))), '/') teams,
+             ${sumSel}
+      FROM memb GROUP BY gk, gk2
+      HAVING count(*) = ${N}${minSpanCond ? ` AND ${minSpanCond}` : ""}${extraHaving}),
+    fin AS (SELECT *, ${derivedSel} FROM agg),
+    best AS (SELECT * FROM fin
+             QUALIFY row_number() OVER (PARTITION BY player_id ORDER BY ${metric} ${dir} NULLS LAST) = 1)`;
+  const data = await q(`${cte}
+    SELECT * FROM best ${conds.length ? `WHERE ${conds.join(" AND ")}` : ""}
+    ORDER BY ${metric} ${dir} NULLS LAST LIMIT ${TOP_LIMIT}`);
+
+  const sort = S.sort.topn;   // display-only resort
+  if (sort) clientSort(data, sort);
+
+  // ---- columns: identity, pinned ranking metric, then everything else ----
+  const idCols = [
+    {key:"rk", label:"#", render:r => data.indexOf(r)+1},
+    playerCell,
+    {key:"span", label: mode==="best" ? "Seasons used" : "Span", left:true},
+    {key:"yrs", label:"Yrs", fmt:fmtInt},
+  ];
+  const ctxCols = [
+    {key:"age_lo", label:"Ages", render:r => `${r.age_lo ?? ""}–${r.age_hi ?? ""}`,
+     raw:r => `${r.age_lo ?? ""}-${r.age_hi ?? ""}`, tip:"Age range over the span (filters on the low age)"},
+    {key:"teams", label:"Teams", left:true,
+     render:r => `<span title="${r.teams || ""}">${(r.teams||"").length > 24 ? r.teams.slice(0,22)+"…" : (r.teams||"")}</span>`,
+     raw:r => r.teams},
+  ];
+  const pinDef = baseCols.find(c => c.key === metric);
+  const cols = [
+    ...idCols,
+    ...(pinDef ? [{...pinDef, label:`${metricLabel} ★`, tip:`Ranking metric — span ${dir==="DESC"?"highest":"lowest"} first`}] : []),
+    ...ctxCols,
+    ...baseCols.filter(c => c.key !== metric),
+  ];
+
+  const metricOpts = metrics.map(m =>
+    `<option value="${m.key}"${m.key===metric?" selected":""}>${String(m.label).replace(/<[^>]*>/g,"")}</option>`).join("");
+  contentEl.innerHTML =
+    `<div class="toolbar">
+       <span class="ctl">N <input type="number" id="topNIn" value="${N}" min="1" max="25" style="width:56px"></span>
+       <span class="radio">
+         <label><input type="radio" name="topMode" value="best" ${mode==="best"?"checked":""}> Best N seasons (any years)</label>
+         <label><input type="radio" name="topMode" value="consec" ${mode==="consec"?"checked":""}> Best N <b>consecutive</b> years</label>
+       </span>
+       <span class="ctl" title="Which column drives the ranking — seasons are picked and spans ordered by it">Rank by
+         <select id="topMetric">${metricOpts}</select>
+         <select id="topDir">
+           <option value="DESC"${dir==="DESC"?" selected":""}>highest</option>
+           <option value="ASC"${dir==="ASC"?" selected":""}>lowest</option>
+         </select>
+       </span>
+       <span class="ctl" title="Applied to the span total. Blank = auto (header Min PA × N).">Min span ${std?"BF/PA":"PA"}
+         <input type="number" id="topMinSpan" min="0" step="50" style="width:124px"
+                placeholder="auto ${fmtInt(autoSpan)}" value="${S.topMinSpan==null?"":S.topMinSpan}"></span>
+       ${std ? `<span class="ctl" title="Applied to the span total innings">Min span IP
+         <input type="number" id="topMinIP" min="0" step="25" style="width:90px" value="${S.topMinIP ?? ""}"></span>` : ""}
+       <span class="count">${fmtInt(data.length)} players</span>
+       <button class="act" id="copyBtn">Copy table (TSV)</button>
+     </div>
+     <div class="sub" style="margin:-4px 0 8px">
+       Ranked by <b>${metricLabel}</b> ${dir==="DESC"?"↓ highest":"↑ lowest"} first ·
+       ${mode==="best"
+         ? `each player's ${N} best ${metricLabel} season${N>1?"s":""}, in any years`
+         : `every ${N}-year window with a qualifying season in each calendar year; best window per player`}.
+       Counting stats sum over the span; rates (BA/OBP/SLG/OPS${std?", ERA/WHIP/H9/HR9/BB9/SO9/SO-W/W-L%":""}, BPPA, P/PA) are
+       recomputed from the summed components, never averaged${std?"; ERA+ and FIP are IP-weighted averages":""};
+       BPPA+ is baseline-weighted. Each season must clear the header Min PA (${fmtInt(S.minPA)}),
+       the span must clear ${fmtInt(minSpan)}${std?" BF/PA":" PA"}${std && S.topMinIP?` and ${S.topMinIP} IP`:""}.
+       Top ${TOP_LIMIT} shown.
+     </div>
+     ${data.length ? "" : `<div class="sub" style="color:#d03b3b">Nobody clears all of these at once — ${N}${mode==="consec"?" consecutive":""} season${N>1?"s":""} of ${fmtInt(S.minPA)}+ ${std?"BF/PA":"PA"}${minSpan?`, ${fmtInt(minSpan)}+ over the span`:""}${std&&S.topMinIP?`, ${S.topMinIP}+ IP`:""}. Lower N, the header Min PA, or the span minimum.</div>`}`
+     + tableHTML(cols, data, sort || {col:metric, dir});
+  $("#topNIn").onchange = e => { S.topN = +e.target.value||1; S.sort.topn = null; render(); };
+  $("#topMetric").onchange = e => {
+    S.topMetric = e.target.value; S.topDir = null; S.sort.topn = null; render(); };   // re-sort on the new metric
+  $("#topDir").onchange = e => { S.topDir = e.target.value; S.sort.topn = null; render(); };
+  $("#topMinSpan").onchange = e => {
+    const v = e.target.value.trim(); S.topMinSpan = v === "" ? null : Math.max(0, +v||0); render(); };
+  if (std) $("#topMinIP").onchange = e => {
+    const v = e.target.value.trim(); S.topMinIP = v === "" ? null : Math.max(0, +v||0); render(); };
+  contentEl.querySelectorAll("input[name=topMode]").forEach(rb => rb.onchange = () => {
+    S.topMode = rb.value; S.sort.topn = null; render(); });
+  $("#copyBtn").onclick = () => copyTSV(cols, data);
+  mountFilterUI("topn", cols, std ? catSrcPitStd : catSrcSeason);
+  bindTable(contentEl, "topn");
+}
+
+async function viewTeams() {
+  const sort = S.sort.teams || {col:"year", dir:"DESC"};
+  const w = [`side='${S.side}'`, `year BETWEEN ${S.yrFrom|0} AND ${S.yrTo|0}`];
+  if (!S.ngl) w.push(NGL_COND);
+  for (const [f,cfg] of Object.entries(S.filters)) {
+    if (!cfg.values.length || (f==="lg" && S.side==="PIT") || f==="hand") continue;
+    const list = cfg.values.map(v=>`'${esc(v)}'`).join(",");
+    w.push(cfg.mode==="in" ? `${f} IN (${list})` : `(${f} IS NULL OR ${f} NOT IN (${list}))`);
+  }
+  const conds = colConds("teams");
+  const data = await q(`
+    WITH agg AS (
+      SELECT year, team, any_value(lg) lg, count(DISTINCT player_id) players,
+             sum(pa)::INT pa, sum(ab)::INT ab, sum(r)::INT r, sum(h)::INT h, sum(hr)::INT hr,
+             sum(sb)::INT sb, sum(bb)::INT bb, sum(tb)::INT tb, sum(bases)::INT bases,
+             sum(bases)::DOUBLE/NULLIF(sum(pa),0) bppa, ${aggPlus()} bppa_plus, ${rateCols}
+      FROM teamrows WHERE ${w.join(" AND ")}
+      GROUP BY year, team
+      HAVING sum(pa) >= ${S.minPA|0})
+    SELECT * FROM agg ${conds.length ? `WHERE ${conds.join(" AND ")}` : ""}
+    ORDER BY ${sort.col} ${sort.dir} NULLS LAST${sort.col==="year" ? `, bppa ${bppaDir()}` : ""} LIMIT 1000`);
+  const cols = [
+    {key:"year",label:"Year"},
+    {key:"team",label:"Team",left:true,render:r=>`<a class="tlink" data-team="${r.team}" data-year="${r.year}">${r.team}</a>`,raw:r=>r.team},
+    ...(S.side==="BAT" ? [{key:"lg",label:"Lg",left:true}] : []),
+    {key:"players",label:"Players",fmt:fmtInt},
+    {key:"pa",label:"PA",fmt:fmtInt},{key:"bases",label:"Bases",fmt:fmtInt},
+    {key:"bppa",label:"BPPA",fmt:v=>`<span class="hi">${fmtBppa(v)}</span>`,raw:r=>r.bppa},
+    {key:"bppa_plus",label:"BPPA+",fmt:fmtPlus},
+    {key:"r",label:"R",fmt:fmtInt},{key:"h",label:"H",fmt:fmtInt},{key:"hr",label:"HR",fmt:fmtInt},
+    {key:"sb",label:"SB",fmt:fmtInt},{key:"bb",label:"BB",fmt:fmtInt},{key:"tb",label:"TB",fmt:fmtInt},
+    ...rateColsDef,
+  ];
+  contentEl.innerHTML =
+    `<div class="toolbar">
+       <span class="sub">Team totals per year — every player who registered stats with that team that year (per-team stint attribution; nTM combined rows excluded). ${S.side==="PIT"?"Bases surrendered — lower BPPA is better.":""} Min PA applies to the team's total PA. Click a team for its roster.</span>
+       <span class="count">${fmtInt(data.length)} team-years</span>
+       <button class="act" id="copyBtn">Copy table (TSV)</button>
+     </div>` + tableHTML(cols, data, sort);
+  $("#copyBtn").onclick = () => copyTSV(cols, data);
+  mountFilterUI("teams", cols, catSrcTeams);
+  bindTable(contentEl, "teams");
+}
+
+// ---------- drill: team roster ----------
+async function viewTeamDrill() {
+  const {team, year} = S.drill;
+  const data = await q(`
+    SELECT player, player_id, age, hand, g, pa, ab, r, h, d2, d3, hr, rbi, sb, cs, bb, so, hbp, tb,
+           bases, pro, bppa, bppa_plus, row_type
+    FROM teamrows WHERE side='${S.side}' AND team='${esc(team)}' AND year=${year|0}${nglAnd()}
+    ORDER BY bppa ${bppaDir()} NULLS LAST`);
+  const dsort = S.sort.teamdrill;
+  if (dsort) clientSort(data, dsort);
+  const tot = (await q(`
+    SELECT sum(pa)::INT pa, sum(bases)::INT bases, sum(bases)::DOUBLE/NULLIF(sum(pa),0) bppa, ${aggPlus()} bppa_plus
+    FROM teamrows WHERE side='${S.side}' AND team='${esc(team)}' AND year=${year|0}${nglAnd()}`))[0];
+  const cols = [
+    playerCell, {key:"age",label:"Age"}, {key:"hand",label:S.side==="BAT"?"B":"T",left:true},
+    {key:"pa",label:"PA",fmt:fmtInt, total:t=>fmtInt(t.pa)},
+    {key:"bases",label:"Bases",fmt:fmtInt, total:t=>fmtInt(t.bases)},
+    {key:"bppa",label:"BPPA",fmt:v=>`<span class="hi">${fmtBppa(v)}</span>`, total:t=>`<span class="hi">${fmtBppa(t.bppa)}</span>`},
+    {key:"bppa_plus",label:"BPPA+",fmt:fmtPlus, total:t=>fmtPlus(t.bppa_plus)},
+    ...countCols(S.side),
+    {key:"row_type",label:"Row",left:true,tip:"stint = part-season with this team"},
+  ];
+  cols[0] = {...playerCell, total:()=> "TEAM TOTAL"};
+  contentEl.innerHTML =
+    `<div class="toolbar"><span class="backlink" id="back">← back to Teams</span>
+       <h2 style="margin:0 8px">${team} — ${year} (${S.side==="BAT"?"batting":"pitching, bases surrendered"})</h2>
+       <span class="count">${data.length} players</span></div>`
+    + tableHTML(cols, data, dsort, {totalRow:tot});
+  $("#back").onclick = () => { S.drill = null; S.sort.teamdrill = null; render(); };
+  bindTable(contentEl, "teamdrill");
+}
+
+// ---------- drill: player page ----------
+async function viewPlayer() {
+  const {pid} = S.drill;
+  const yrCond = ` AND year BETWEEN ${S.yrFrom|0} AND ${S.yrTo|0}`;   // header range scopes the whole page
+  const sides = await q(`SELECT side, count(*) n FROM season WHERE player_id='${esc(pid)}'${nglAnd()}${yrCond} GROUP BY side ORDER BY n DESC`);
+  if (!sides.length) {
+    contentEl.innerHTML = `<div class="toolbar"><span class="backlink" id="back">← back</span></div>
+      <div class="sub" style="margin-top:10px">No seasons for this player in ${S.yrFrom}–${S.yrTo} — widen the year range in the header.</div>`;
+    $("#back").onclick = () => { S.drill = null; render(); };
+    return;
+  }
+  if (!sides.some(s => s.side === S.drill.side)) S.drill.side = sides[0].side;
+  const side = S.drill.side, dir = side==="BAT" ? "DESC":"ASC";
+  const sort = S.sort.player || {col:"year", dir:"ASC"};
+  const seasons = await q(`
+    SELECT year, age, team, lg, ip, pos, g, pa, ab, r, h, d2, d3, hr, rbi, sb, cs, bb, so, hbp, sh, sf, tb,
+           bases, pro, p_per_pa, bppa, bppa_plus,
+           CASE WHEN ab>0 THEN h::DOUBLE/ab ELSE 0 END ba,
+           CASE WHEN pa>0 THEN (h+bb+hbp)::DOUBLE/pa ELSE 0 END obp,
+           CASE WHEN ab>0 THEN tb::DOUBLE/ab ELSE 0 END slg,
+           (CASE WHEN pa>0 THEN (h+bb+hbp)::DOUBLE/pa ELSE 0 END + CASE WHEN ab>0 THEN tb::DOUBLE/ab ELSE 0 END) ops
+    FROM season WHERE player_id='${esc(pid)}' AND side='${side}'${nglAnd()}${yrCond}
+    ORDER BY ${sort.col} ${sort.dir} NULLS LAST`);
+  const tot = (await q(`
+    SELECT any_value(player) player, count(*) seasons, min(year) fr, max(year) to_yr,
+           sum(g)::INT g, sum(pa)::INT pa, sum(ab)::INT ab, sum(r)::INT r, sum(h)::INT h,
+           sum(d2)::INT d2, sum(d3)::INT d3, sum(hr)::INT hr, sum(rbi)::INT rbi, sum(sb)::INT sb,
+           sum(cs)::INT cs, sum(bb)::INT bb, sum(so)::INT so, sum(hbp)::INT hbp, sum(sh)::INT sh,
+           sum(sf)::INT sf, sum(tb)::INT tb, sum(bases)::INT bases, sum(pro) pro,
+           sum(bases)::DOUBLE/NULLIF(sum(pa),0) bppa, ${side==="BAT"
+             ? `100.0*sum(bases) FILTER (WHERE bppa_plus IS NOT NULL)/NULLIF(sum(lg_bppa*pa) FILTER (WHERE bppa_plus IS NOT NULL),0)`
+             : `100.0*sum(lg_bppa*pa) FILTER (WHERE bppa_plus IS NOT NULL)/NULLIF(sum(bases) FILTER (WHERE bppa_plus IS NOT NULL),0)`} bppa_plus,
+           ${rateCols}
+    FROM season WHERE player_id='${esc(pid)}' AND side='${side}'${nglAnd()}${yrCond}`))[0];
+  const best = seasons.length ? [...seasons].filter(s=>s.bppa!=null).sort((a,b)=> side==="BAT" ? b.bppa-a.bppa : a.bppa-b.bppa)[0] : null;
+  const full = (await q(`SELECT min(year) fr, max(year) to_yr FROM season
+    WHERE player_id='${esc(pid)}' AND side='${side}'${nglAnd()}`))[0];
+  const ranged = full && (full.fr < tot.fr || full.to_yr > tot.to_yr);
+  const totLbl = ranged ? `${tot.fr}–${tot.to_yr}` : "CAREER";
+  const kPre = ranged ? "In range" : "Career";
+  const stints = await q(`
+    SELECT year, team, lg, pa, bases, bppa FROM t
+    WHERE player_id='${esc(pid)}' AND side='${side}' AND row_type='stint' AND NOT incomplete${nglAnd()}${yrCond} ORDER BY year, team`);
+  const sideTabs = sides.length > 1
+    ? `<span class="seg">` + sides.map(s =>
+        `<button data-pside="${s.side}" class="${s.side===side?"on":""}">${s.side==="BAT"?"As batter":"As pitcher"} (${s.n})</button>`).join("") + `</span>`
+    : "";
+  const cols = [
+    {key:"year",label:"Year"},{key:"age",label:"Age"},{key:"team",label:"Team",left:true},
+    ...(side==="BAT" ? [{key:"lg",label:"Lg",left:true}] : [{key:"ip",label:"IP",fmt:v=>fmt(v,1), total:()=> ""}]),
+    {key:"pa",label:"PA",fmt:fmtInt, total:t=>fmtInt(t.pa)},
+    {key:"bases",label:"Bases",fmt:fmtInt, total:t=>fmtInt(t.bases)},
+    {key:"pro",label:"PRO",fmt:v=>fmt(v,2), total:t=>fmt(t.pro,2)},
+    {key:"bppa",label:"BPPA",fmt:v=>`<span class="hi">${fmtBppa(v)}</span>`, total:t=>`<span class="hi">${fmtBppa(t.bppa)}</span>`,raw:r=>r.bppa},
+    {key:"bppa_plus",label:"BPPA+",fmt:fmtPlus, total:t=>fmtPlus(t.bppa_plus)},
+    ...countCols(side).map(c => ({...c, total:t=>fmtInt(t[c.key])})),
+    ...rateColsDef.map(c => ({...c, total:t=>fmtRate(t[c.key])})),
+  ];
+  cols[0] = {...cols[0], total:()=> totLbl};
+  contentEl.innerHTML =
+    `<div class="toolbar"><span class="backlink" id="back">← back</span></div>
+     <h2>${tot.player} <span class="sub" style="display:inline">(${pid})</span></h2>
+     <div class="sub">${tot.fr}–${tot.to_yr} · ${tot.seasons} seasons${side==="PIT" ? " · opponent batting (lower BPPA = better)" : ""}${
+       ranged ? ` · <b>scoped to the header range ${S.yrFrom}–${S.yrTo}</b> (full career ${full.fr}–${full.to_yr})` : ""}</div>
+     ${sideTabs}
+     <div class="tiles">
+       <div class="tile"><div class="v">${fmtInt(tot.pa)}</div><div class="k">${kPre} PA</div></div>
+       <div class="tile"><div class="v">${fmtInt(tot.bases)}</div><div class="k">${kPre} Bases</div></div>
+       <div class="tile"><div class="v">${tot.bppa!=null ? tot.bppa.toFixed(6) : "—"}</div><div class="k">${kPre} BPPA</div></div>
+       <div class="tile"><div class="v">${fmtPlus(tot.bppa_plus) || "—"}</div><div class="k">${kPre} BPPA+</div></div>
+       ${best ? `<div class="tile"><div class="v">${best.year} · ${fmtBppa(best.bppa)}</div><div class="k">Best season</div></div>` : ""}
+     </div>
+     ${sparkline(seasons, side)}
+     ${tableHTML(cols, [...seasons].sort((a,b)=> {
+        const x=a[sort.col], y=b[sort.col];
+        if (x==null) return 1; if (y==null) return -1;
+        return (x<y?-1:x>y?1:0) * (sort.dir==="DESC"?-1:1);
+     }), sort, {totalRow:tot})}
+     ${stints.length ? `<details style="margin-top:10px" ${S.sort.stints?"open":""}><summary class="sub" style="cursor:pointer">Team splits in trade years (${stints.length} stint rows)</summary>
+        <div class="tblwrap" style="max-height:260px"><table id="stintTbl"><thead><tr>
+          <th data-k="year">Year</th><th class="l" data-k="team">Team</th><th class="l" data-k="lg">Lg</th>
+          <th data-k="pa">PA</th><th data-k="bases">Bases</th><th data-k="bppa">BPPA</th></tr></thead><tbody>
+        ${clientSort(stints, S.sort.stints).map(s=>`<tr><td>${s.year}</td><td class="l">${s.team}</td><td class="l">${s.lg??""}</td><td>${fmtInt(s.pa)}</td><td>${fmtInt(s.bases)}</td><td>${fmtBppa(s.bppa)}</td></tr>`).join("")}
+        </tbody></table></div></details>` : ""}`;
+  $("#back").onclick = () => { S.drill = null; S.sort.player = null; S.sort.stints = null; render(); };
+  contentEl.querySelectorAll("[data-pside]").forEach(b => b.onclick = () => { S.drill.side = b.dataset.pside; S.sort.player=null; S.sort.stints=null; render(); });
+  contentEl.querySelector("#stintTbl")?.querySelectorAll("thead th").forEach(th => th.onclick = e => {
+    e.stopPropagation();
+    const k = th.dataset.k, cur = S.sort.stints || {};
+    S.sort.stints = { col:k, dir: cur.col===k && cur.dir==="ASC" ? "DESC" : "ASC" };
+    render();
+  });
+  // sortable headers on the main season table only (client-side, data already loaded)
+  contentEl.querySelector(".tblwrap")?.querySelectorAll("thead th").forEach(th => th.onclick = () => {
+    const k = th.dataset.k, cur = S.sort.player || {col:"year",dir:"ASC"};
+    if (!k) return;
+    S.sort.player = { col:k, dir: cur.col===k && cur.dir==="ASC" ? "DESC" : "ASC" };
+    render();
+  });
+}
+function sparkline(seasons, side) {
+  const pts = seasons.filter(s => s.bppa != null).sort((a,b)=>a.year-b.year);
+  if (pts.length < 2) return "";
+  const W = Math.min(900, Math.max(320, pts.length*22)), H = 74, PAD = 4;
+  const max = Math.max(...pts.map(p=>p.bppa)), bw = (W-2*PAD)/pts.length;
+  const bars = pts.map((p,i) => {
+    const h = Math.max(2, (p.bppa/max)*(H-18));
+    const qual = p.pa >= 502;
+    return `<rect x="${(PAD+i*bw).toFixed(1)}" y="${(H-h).toFixed(1)}" width="${Math.max(2,bw-2).toFixed(1)}" height="${h.toFixed(1)}"
+      rx="2" fill="var(--accent)" opacity="${qual?1:0.4}" data-tip="${p.year}: ${p.bppa.toFixed(4)} BPPA · ${p.pa} PA${qual?"":" (below 502)"}"/>`;
+  }).join("");
+  return `<svg id="spark" width="${W}" height="${H}" role="img" aria-label="BPPA by season">
+    <line x1="0" y1="${H-1}" x2="${W}" y2="${H-1}" stroke="var(--axis)"/>${bars}</svg>
+    <div class="sub">BPPA by season (${side==="BAT"?"taller = better":"taller = more bases surrendered"}; faded = under 502 PA). Hover for values.</div>`;
+}
+document.addEventListener("mousemove", e => {
+  const tip = $("#tooltip"), t = e.target.closest("[data-tip]");
+  if (t) { tip.textContent = t.dataset.tip; tip.style.display="block";
+    tip.style.left = (e.clientX+12)+"px"; tip.style.top = (e.clientY-28)+"px"; }
+  else tip.style.display="none";
+});
+
+// ---------- SQL tab ----------
+async function viewSQL() {
+  const prev = S.sqlText || `-- Views: t (all rows), season (row_type='season', complete), teamrows (per-team attribution)
+-- Anchors: Ruth 1921 must be 0.880231 · Bonds 2001 must be 0.914157
+SELECT player, year, pa, bases, round(bppa,6) AS bppa, round(bppa_plus,1) AS bppa_plus
+FROM season
+WHERE (player_id='ruthba01' AND year=1921) OR (player_id='bondsba01' AND year=2001)
+ORDER BY year;`;
+  contentEl.innerHTML =
+    `<div class="toolbar"><span class="sub">Full DuckDB SQL against the loaded Parquet. Ctrl+Enter to run.</span>
+       <button class="act" id="runBtn">Run ▶</button></div>
+     <textarea id="sqlbox" spellcheck="false">${prev.replace(/</g,"&lt;")}</textarea>
+     <div id="sqlout" style="margin-top:10px"></div>`;
+  const run = async () => {
+    S.sqlText = $("#sqlbox").value;
+    const out = $("#sqlout");
+    try {
+      const t0 = performance.now();
+      const data = await q(S.sqlText);
+      const ms = (performance.now()-t0).toFixed(0);
+      if (!data.length) { out.innerHTML = `<div class="sub">0 rows (${ms} ms)</div>`; return; }
+      const keys = Object.keys(data[0]);
+      let sqlSort = null;
+      const paint = () => {
+        const rows = sqlSort ? clientSort([...data], sqlSort) : data;
+        const shown = rows.slice(0, 2000);
+        out.innerHTML = `<div class="sub">${fmtInt(data.length)} rows (${ms} ms)${data.length>2000?" — showing first 2,000":""} — click headers to sort</div>
+          <div class="tblwrap"><table><thead><tr>${keys.map(k=>`<th data-k="${k}" class="${sqlSort?.col===k?"sorted":""}">${k}${sqlSort?.col===k?(sqlSort.dir==="DESC"?" ↓":" ↑"):""}</th>`).join("")}</tr></thead><tbody>
+          ${shown.map(r=>`<tr>${keys.map(k=>`<td>${r[k] ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+        out.querySelectorAll("thead th").forEach(th => th.onclick = () => {
+          const k = th.dataset.k;
+          sqlSort = { col:k, dir: sqlSort?.col===k && sqlSort.dir==="DESC" ? "ASC" : "DESC" };
+          paint();
+        });
+      };
+      paint();
+    } catch (e) { out.innerHTML = `<div class="err" style="color:#d03b3b;white-space:pre-wrap"></div>`; out.firstChild.textContent = String(e); }
+  };
+  $("#runBtn").onclick = run;
+  $("#sqlbox").addEventListener("keydown", e => { if ((e.ctrlKey||e.metaKey) && e.key==="Enter") run(); });
+}
+
+// ---------- standard pitching views (BPPA always at the far right) ----------
+const fmtIP = o => o==null ? "" : `${Math.floor(o/3)}.${o%3}`;
+const catSrcPitStd = key => `SELECT DISTINCT ${key} v FROM pitstd WHERE ${key} IS NOT NULL AND row_type='season'${!S.ngl ? ` AND NOT (${key==='lg'?'lg':'lg'} IN ${NGLSQL} OR lg LIKE '%,%')` : ""} ORDER BY 1`;
+const stdNglCond = `(lg IS NULL OR NOT (lg IN ${NGLSQL} OR lg LIKE '%,%'))`;
+const STD_STAT_COLS = [
+  {key:"w",label:"W",fmt:fmtInt},{key:"l",label:"L",fmt:fmtInt},{key:"wl_pct",label:"W-L%",fmt:fmtRate},
+  {key:"era",label:"ERA",fmt:v=>fmt(v,2)},{key:"g",label:"G",fmt:fmtInt},{key:"gs",label:"GS",fmt:fmtInt},
+  {key:"gf",label:"GF",fmt:fmtInt},{key:"cg",label:"CG",fmt:fmtInt},{key:"sho",label:"SHO",fmt:fmtInt},
+  {key:"sv",label:"SV",fmt:fmtInt},{key:"ip_outs",label:"IP",fmt:fmtIP,tip:"Sorting/filtering uses outs (IP × 3)"},
+  {key:"h",label:"H",fmt:fmtInt},{key:"r",label:"R",fmt:fmtInt},{key:"er",label:"ER",fmt:fmtInt},
+  {key:"hr",label:"HR",fmt:fmtInt},{key:"bb",label:"BB",fmt:fmtInt},{key:"ibb",label:"IBB",fmt:fmtInt},
+  {key:"so",label:"SO",fmt:fmtInt},{key:"hbp",label:"HBP",fmt:fmtInt},{key:"bk",label:"BK",fmt:fmtInt},
+  {key:"wp",label:"WP",fmt:fmtInt},{key:"bf",label:"BF",fmt:fmtInt},
+  {key:"era_plus",label:"ERA+",fmt:v=>fmt(v,0)},{key:"fip",label:"FIP",fmt:v=>fmt(v,2)},
+  {key:"whip",label:"WHIP",fmt:v=>fmt(v,3)},{key:"h9",label:"H9",fmt:v=>fmt(v,1)},
+  {key:"hr9",label:"HR9",fmt:v=>fmt(v,1)},{key:"bb9",label:"BB9",fmt:v=>fmt(v,1)},
+  {key:"so9",label:"SO9",fmt:v=>fmt(v,1)},{key:"so_w",label:"SO/W",fmt:v=>fmt(v,2)},
+  {key:"war",label:"WAR",fmt:v=>fmt(v,1)},
+];
+const STD_BPPA_COLS = [
+  {key:"pa",label:"PA",fmt:fmtInt,tip:"Rebuilt PA (batters faced) from the Batting Against data"},
+  {key:"bases",label:"Bases",fmt:fmtInt},
+  {key:"bppa",label:"BPPA",fmt:v=>`<span class="hi">${fmtBppa(v)}</span>`,raw:r=>r.bppa,tip:"Bases surrendered per PA — lower is better"},
+  {key:"bppa_plus",label:"BPPA+",fmt:fmtPlus,tip:"100 = league average, higher = better (ERA+ convention)"},
+];
+function stdFilterConds(alias) {
+  const w = [];
+  if (!S.ngl) w.push(stdNglCond.replaceAll("lg", `${alias}lg`).replaceAll(`${alias}${alias}lg`, `${alias}lg`));
+  for (const [f,cfg] of Object.entries(S.filters)) {
+    if (!cfg.values.length || f==="lg") continue;
+    const list = cfg.values.map(v=>`'${esc(v)}'`).join(",");
+    w.push(cfg.mode==="in" ? `${alias}${f} IN (${list})` : `(${alias}${f} IS NULL OR ${alias}${f} NOT IN (${list}))`);
+  }
+  return w;
+}
+async function viewSeasonsStd() {
+  const sort = S.sort.seasons || {col:"bppa", dir:"ASC"};
+  const sortCol = sort.col === "ip" ? "ip_outs" : sort.col;
+  const conds = colConds("seasons");
+  const sc = searchCond();
+  const w = [`s.row_type='season'`, `s.year BETWEEN ${S.yrFrom|0} AND ${S.yrTo|0}`,
+             ...stdFilterConds("s.")];
+  if ((S.minPA|0) > 0) w.push(`COALESCE(b.pa, s.bf, 0) >= ${S.minPA|0}`);
+  const cte = `
+    WITH base0 AS (
+      SELECT s.year, s.player, s.player_id, s.age, s.team, s.lg, s.hand,
+             s.w, s.l, s.wl_pct, s.era, s.g, s.gs, s.gf, s.cg, s.sho, s.sv,
+             s.ip, s.ip_outs, s.h, s.r, s.er, s.hr, s.bb, s.ibb, s.so, s.hbp,
+             s.bk, s.wp, s.bf, s.era_plus, s.fip, s.whip, s.h9, s.hr9, s.bb9, s.so9, s.so_w, s.war,
+             b.pa, b.bases, b.bppa, b.bppa_plus
+      FROM pitstd s
+      LEFT JOIN season b ON b.side='PIT' AND b.player_id=s.player_id AND b.year=s.year
+      WHERE ${w.join(" AND ")}),
+    base AS (SELECT * FROM base0 ${conds.length ? `WHERE ${conds.join(" AND ")}` : ""}),
+    ranked AS (SELECT *, row_number() OVER (ORDER BY bppa ASC NULLS LAST) rk FROM base)`;
+  const data = await q(`${cte}
+    SELECT * FROM ranked ${sc ? `WHERE ${sc}` : ""}
+    ORDER BY ${sortCol} ${sort.dir} NULLS LAST, rk LIMIT 500`);
+  const nTot = (await q(`${cte} SELECT count(*) n FROM base`))[0].n;
+  const n = sc ? (await q(`${cte} SELECT count(*) n FROM ranked WHERE ${sc}`))[0].n : nTot;
+  const cols = [
+    {key:"rk",label:"#",fmt:fmtInt,tip:"All-time rank by BPPA (ascending — fewest bases allowed) under current criteria"},
+    {key:"year",label:"Year"}, playerCell, {key:"age",label:"Age"},
+    {key:"team",label:"Team",left:true},{key:"lg",label:"Lg",left:true},
+    ...STD_STAT_COLS, ...STD_BPPA_COLS,
+  ];
+  contentEl.innerHTML =
+    `<div class="toolbar">
+       <span class="sub">Standard pitching seasons, BPPA far right (from Batting Against; 1900–09 predate that data so BPPA is blank there). Min PA uses batters faced. # = BPPA rank.</span>
+       <span class="count">showing ${fmtInt(data.length)} of ${fmtInt(n)}${sc ? ` matches · ranked of ${fmtInt(nTot)}` : ""}</span>
+       <button class="act" id="copyBtn">Copy table (TSV)</button>
+     </div>` + tableHTML(cols, data, sort);
+  $("#copyBtn").onclick = () => copyTSV(cols, data);
+  mountFilterUI("seasons", cols, catSrcPitStd);
+  bindTable(contentEl, "seasons");
+}
+async function viewCareersStd() {
+  const sort = S.sort.careers || {col:"bppa", dir:"ASC"};
+  const sortCol = sort.col === "ip" ? "ip_outs" : sort.col;
+  const conds = colConds("careers");
+  const w = [`s.row_type='season'`, `s.year BETWEEN ${S.yrFrom|0} AND ${S.yrTo|0}`,
+             ...stdFilterConds("s.")];
+  const sc = searchCond();
+  if (sc) w.push(sc.replaceAll("player", "s.player"));
+  const data = await q(`
+    WITH j AS (
+      SELECT s.*, b.pa AS bpa, b.bases AS bbases, b.lg_bppa, b.bppa_plus AS bplus
+      FROM pitstd s
+      LEFT JOIN season b ON b.side='PIT' AND b.player_id=s.player_id AND b.year=s.year
+      WHERE ${w.join(" AND ")}),
+    agg AS (
+      SELECT player_id, any_value(player) player, count(*) seasons, min(year) fr, max(year) to_yr,
+             sum(w)::INT w, sum(l)::INT l, sum(g)::INT g, sum(gs)::INT gs, sum(cg)::INT cg,
+             sum(sho)::INT sho, sum(sv)::INT sv, sum(ip_outs)::INT ip_outs,
+             sum(h)::INT h, sum(r)::INT r, sum(er)::INT er, sum(hr)::INT hr, sum(bb)::INT bb,
+             sum(so)::INT so, sum(hbp)::INT hbp, sum(bf)::INT bf,
+             CASE WHEN sum(ip_outs)>0 THEN 27.0*sum(er)/sum(ip_outs) END era,
+             CASE WHEN sum(ip_outs)>0 THEN 3.0*(sum(bb)+sum(h))/sum(ip_outs) END whip,
+             CASE WHEN sum(ip_outs)>0 THEN 27.0*sum(so)/sum(ip_outs) END so9,
+             sum(bpa)::INT pa, sum(bbases)::INT bases,
+             CASE WHEN sum(bpa)>0 THEN sum(bbases)::DOUBLE/sum(bpa) END bppa,
+             100.0*sum(lg_bppa*bpa) FILTER (WHERE bplus IS NOT NULL)
+               / NULLIF(sum(bbases) FILTER (WHERE bplus IS NOT NULL),0) bppa_plus
+      FROM j GROUP BY player_id
+      HAVING sum(COALESCE(bpa, bf, 0)) >= ${S.minCareerPA|0})
+    SELECT * FROM agg ${conds.length ? `WHERE ${conds.join(" AND ")}` : ""}
+    ORDER BY ${sortCol} ${sort.dir} NULLS LAST LIMIT 500`);
+  const cols = [
+    {key:"rk",label:"#",render:r=>data.indexOf(r)+1},
+    playerCell, {key:"fr",label:"From"},{key:"to_yr",label:"To"},{key:"seasons",label:"Yrs",fmt:fmtInt},
+    {key:"w",label:"W",fmt:fmtInt},{key:"l",label:"L",fmt:fmtInt},{key:"era",label:"ERA",fmt:v=>fmt(v,2)},
+    {key:"g",label:"G",fmt:fmtInt},{key:"gs",label:"GS",fmt:fmtInt},{key:"cg",label:"CG",fmt:fmtInt},
+    {key:"sho",label:"SHO",fmt:fmtInt},{key:"sv",label:"SV",fmt:fmtInt},
+    {key:"ip_outs",label:"IP",fmt:fmtIP},
+    {key:"h",label:"H",fmt:fmtInt},{key:"er",label:"ER",fmt:fmtInt},{key:"hr",label:"HR",fmt:fmtInt},
+    {key:"bb",label:"BB",fmt:fmtInt},{key:"so",label:"SO",fmt:fmtInt},{key:"bf",label:"BF",fmt:fmtInt},
+    {key:"whip",label:"WHIP",fmt:v=>fmt(v,3)},{key:"so9",label:"SO9",fmt:v=>fmt(v,1)},
+    ...STD_BPPA_COLS,
+  ];
+  contentEl.innerHTML =
+    `<div class="toolbar">
+       <span class="ctl">Min career BF/PA <input type="number" id="minCarPA" value="${S.minCareerPA}" step="500" min="0" style="width:84px"></span>
+       <span class="sub">Career standard pitching — components summed, ERA/WHIP recomputed; BPPA family from Batting Against.</span>
+       <span class="count">${fmtInt(data.length)} pitchers</span>
+       <button class="act" id="copyBtn">Copy table (TSV)</button>
+     </div>` + tableHTML(cols, data, sort);
+  $("#minCarPA").onchange = e => { S.minCareerPA = +e.target.value||0; render(); };
+  $("#copyBtn").onclick = () => copyTSV(cols, data);
+  mountFilterUI("careers", cols, catSrcPitStd);
+  bindTable(contentEl, "careers");
+}
+async function viewPlayerStd() {
+  const {pid} = S.drill;
+  const yrCond = ` AND s.year BETWEEN ${S.yrFrom|0} AND ${S.yrTo|0}`;
+  const seasons = await q(`
+    SELECT s.*, b.pa, b.bases, b.bppa, b.bppa_plus
+    FROM pitstd s
+    LEFT JOIN season b ON b.side='PIT' AND b.player_id=s.player_id AND b.year=s.year
+    WHERE s.player_id='${esc(pid)}' AND s.row_type='season'${!S.ngl ? ` AND ${stdNglCond.replaceAll("lg","s.lg")}` : ""}${yrCond}
+    ORDER BY s.year`);
+  if (!seasons.length) return viewPlayer();   // no standard-pitching rows — fall back
+  const tot = (await q(`
+    WITH j AS (SELECT s.*, b.pa AS bpa, b.bases AS bbases, b.lg_bppa, b.bppa_plus AS bplus
+      FROM pitstd s LEFT JOIN season b ON b.side='PIT' AND b.player_id=s.player_id AND b.year=s.year
+      WHERE s.player_id='${esc(pid)}' AND s.row_type='season'${yrCond})
+    SELECT any_value(player) player, count(*) seasons, min(year) fr, max(year) to_yr,
+           sum(w)::INT w, sum(l)::INT l, sum(g)::INT g, sum(gs)::INT gs, sum(cg)::INT cg,
+           sum(sho)::INT sho, sum(sv)::INT sv, sum(ip_outs)::INT ip_outs, sum(h)::INT h,
+           sum(er)::INT er, sum(hr)::INT hr, sum(bb)::INT bb, sum(so)::INT so, sum(bf)::INT bf,
+           CASE WHEN sum(ip_outs)>0 THEN 27.0*sum(er)/sum(ip_outs) END era,
+           CASE WHEN sum(ip_outs)>0 THEN 3.0*(sum(bb)+sum(h))/sum(ip_outs) END whip,
+           sum(bpa)::INT pa, sum(bbases)::INT bases,
+           CASE WHEN sum(bpa)>0 THEN sum(bbases)::DOUBLE/sum(bpa) END bppa,
+           100.0*sum(lg_bppa*bpa) FILTER (WHERE bplus IS NOT NULL)
+             / NULLIF(sum(bbases) FILTER (WHERE bplus IS NOT NULL),0) bppa_plus
+    FROM j`))[0];
+  const sort = S.sort.player || {col:"year", dir:"ASC"};
+  const full = (await q(`SELECT min(year) fr, max(year) to_yr FROM pitstd
+    WHERE player_id='${esc(pid)}' AND row_type='season'`))[0];
+  const ranged = full && (full.fr < tot.fr || full.to_yr > tot.to_yr);
+  const kPre = ranged ? "In range" : "Career";
+  const cols = [
+    {key:"year",label:"Year", total:()=> ranged ? `${tot.fr}–${tot.to_yr}` : "CAREER"},{key:"age",label:"Age"},
+    {key:"team",label:"Team",left:true},{key:"lg",label:"Lg",left:true},
+    ...STD_STAT_COLS.map(c => {
+      if (c.key==="ip_outs") return {...c, total:t=>fmtIP(t.ip_outs)};
+      if (["w","l","g","gs","cg","sho","sv","h","er","hr","bb","so","bf"].includes(c.key))
+        return {...c, total:t=>fmtInt(t[c.key])};
+      if (c.key==="era")  return {...c, total:t=>fmt(t.era,2)};
+      if (c.key==="whip") return {...c, total:t=>fmt(t.whip,3)};
+      return c;
+    }),
+    ...STD_BPPA_COLS.map(c => ({...c, total:t =>
+      c.key==="bppa" ? `<span class="hi">${fmtBppa(t.bppa)}</span>` :
+      c.key==="bppa_plus" ? fmtPlus(t.bppa_plus) : fmtInt(t[c.key])})),
+  ];
+  contentEl.innerHTML =
+    `<div class="toolbar"><span class="backlink" id="back">← back</span></div>
+     <h2>${tot.player} <span class="sub" style="display:inline">(${pid})</span></h2>
+     <div class="sub">${tot.fr}–${tot.to_yr} · ${tot.seasons} seasons · standard pitching (BPPA from Batting Against, lower = better)${
+       ranged ? ` · <b>scoped to the header range ${S.yrFrom}–${S.yrTo}</b> (full career ${full.fr}–${full.to_yr})` : ""}</div>
+     <div class="tiles">
+       <div class="tile"><div class="v">${fmtInt(tot.w)}–${fmtInt(tot.l)}</div><div class="k">W–L</div></div>
+       <div class="tile"><div class="v">${fmt(tot.era,2)}</div><div class="k">${kPre} ERA</div></div>
+       <div class="tile"><div class="v">${fmtIP(tot.ip_outs)}</div><div class="k">IP</div></div>
+       <div class="tile"><div class="v">${fmtInt(tot.so)}</div><div class="k">SO</div></div>
+       <div class="tile"><div class="v">${tot.bppa!=null ? tot.bppa.toFixed(6) : "—"}</div><div class="k">${kPre} BPPA</div></div>
+       <div class="tile"><div class="v">${fmtPlus(tot.bppa_plus) || "—"}</div><div class="k">${kPre} BPPA+</div></div>
+     </div>
+     ${tableHTML(cols, clientSort([...seasons], sort), sort, {totalRow:tot})}`;
+  $("#back").onclick = () => { S.drill = null; S.sort.player = null; render(); };
+  contentEl.querySelector(".tblwrap")?.querySelectorAll("thead th").forEach(th => th.onclick = () => {
+    const k = th.dataset.k, cur = S.sort.player || {col:"year",dir:"ASC"};
+    if (!k) return;
+    S.sort.player = { col:k, dir: cur.col===k && cur.dir==="ASC" ? "DESC" : "ASC" };
+    render();
+  });
+}
+
+// ---------- Fixes tab (data overrides) ----------
+const OVR_COLS = ["player","team","lg","hand","pos","age","g","ab","r","h","d2","d3","hr","rbi",
+                  "sb","cs","bb","so","hbp","sh","sf","ip","pa_source","incomplete"];
+async function saveOverrides(msgEl) {
+  try {
+    const r = await fetch("/save/bppa_overrides.json", {method:"POST",
+      headers:{"Content-Type":"text/plain"}, body: JSON.stringify(S.overrides, null, 1)});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    location.reload();   // rebuild all views from patched data
+  } catch (e) {
+    msgEl.textContent = "Could not save — is serve_bppa running (and restarted since the last update)? " + e;
+  }
+}
+async function viewFixes() {
+  const list = S.overrides.map((o,i) =>
+    `<tr><td class="l">${o.side}</td><td class="l">${o.player_id}</td><td>${o.year}</td>
+     <td class="l">${o.team||"·"}</td><td class="l">${o.row_type||"·"}</td>
+     <td class="l">${o.col}</td><td class="l">${o.value}</td>
+     <td><button class="act" data-i="${i}">delete</button></td></tr>`).join("");
+  contentEl.innerHTML =
+    `<h2>Data fixes</h2>
+     <p class="note" style="margin-top:2px">Fixes patch raw fields on targeted rows of the batting / batting-against data
+     (stored in <b>bppa_overrides.json</b> next to this page — they survive parquet regens and daily refreshes).
+     Everything downstream — PA, TB, Bases, BPPA, BPPA+, league baselines, Negro-League classification, team totals —
+     recomputes automatically. Leave Team / RowType blank to hit all rows of that player-year.
+     Note: 2TM-style combined rows and NgL trade-years (e.g. Scales 1923) are now handled structurally — no fix needed.</p>
+     <div class="tblwrap" style="max-height:300px"><table>
+       <thead><tr><th class="l">Side</th><th class="l">PlayerID</th><th>Year</th><th class="l">Team</th>
+       <th class="l">RowType</th><th class="l">Column</th><th class="l">New value</th><th></th></tr></thead>
+       <tbody>${list || `<tr><td class="l" colspan="8" style="color:var(--ink-3)">No fixes yet.</td></tr>`}</tbody>
+     </table></div>
+     <div class="toolbar" style="margin-top:14px; align-items:flex-end">
+       <span class="ctl">Side <select id="fxSide"><option>BAT</option><option>PIT</option></select></span>
+       <span class="ctl">PlayerID <input id="fxPid" style="width:110px" placeholder="bondsba01"></span>
+       <span class="ctl">Year <input id="fxYear" type="number" style="width:80px"></span>
+       <span class="ctl">Team <input id="fxTeam" style="width:70px" placeholder="(all)"></span>
+       <span class="ctl">RowType <select id="fxRt"><option value="">(all)</option><option>season</option><option>stint</option></select></span>
+       <span class="ctl">Column <select id="fxCol">${OVR_COLS.map(c=>`<option>${c}</option>`).join("")}</select></span>
+       <span class="ctl">Value <input id="fxVal" style="width:100px"></span>
+       <button class="act" id="fxAdd" style="background:var(--accent);border-color:var(--accent);color:#fff">Add fix</button>
+     </div>
+     <div class="sub" id="fxMsg"></div>`;
+  contentEl.querySelectorAll("button[data-i]").forEach(b => b.onclick = () => {
+    S.overrides.splice(+b.dataset.i, 1);
+    saveOverrides($("#fxMsg"));
+  });
+  $("#fxAdd").onclick = () => {
+    const o = { side:$("#fxSide").value, player_id:$("#fxPid").value.trim(), year:+$("#fxYear").value,
+                team:$("#fxTeam").value.trim(), row_type:$("#fxRt").value,
+                col:$("#fxCol").value, value:$("#fxVal").value.trim() };
+    if (!o.player_id || !o.year) { $("#fxMsg").textContent = "PlayerID and Year are required."; return; }
+    S.overrides.push(o);
+    saveOverrides($("#fxMsg"));
+  };
+}
+
+// ---------- dispatch ----------
+let rendering = false, pending = false;
+async function render() {
+  if (!conn) return;
+  if (rendering) { pending = true; return; }
+  rendering = true;
+  try {
+    const std = S.side === "PIT" && S.pitStat === "std" && S.hasPitStd;
+    if (S.drill?.type === "player") await (std ? viewPlayerStd() : viewPlayer());
+    else if (S.drill?.type === "team") await viewTeamDrill();
+    else if (S.tab === "seasons") await (std ? viewSeasonsStd() : viewSeasons());
+    else if (S.tab === "careers") await (std ? viewCareersStd() : viewCareers());
+    else if (S.tab === "topn")   await viewTopN();
+    else if (S.tab === "teams")  await viewTeams();
+    else if (S.tab === "sql")    await viewSQL();
+    else if (S.tab === "fixes")  await viewFixes();
+  } catch (e) {
+    contentEl.innerHTML = `<div class="err" style="color:#d03b3b;white-space:pre-wrap"></div>`;
+    contentEl.firstChild.textContent = String(e);
+  } finally { rendering = false; if (pending) { pending = false; render(); } }
+}
+
+// ---------- wiring ----------
+$("#sideSeg").querySelectorAll("button").forEach(b => b.onclick = async () => {
+  S.side = b.dataset.side;
+  $("#sideSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x===b));
+  const lo = S.side==="PIT" ? 1910 : 1900;
+  $("#yrFrom").min = lo; if (+$("#yrFrom").value < lo) { $("#yrFrom").value = lo; }
+  S.yrFrom = Math.max(S.yrFrom, lo);
+  S.sort = {}; S.drill = null; delete S.filters.lg; delete S.filters.team; delete S.filters.hand;
+  S.colFilters = {seasons:[], careers:[], topn:[], teams:[]};
+  S.topMetric = "bppa"; S.topDir = null; S.topMinSpan = null; S.topMinIP = null;
+  $("#pitStatSeg").style.display = (S.side==="PIT" && S.hasPitStd) ? "" : "none";
+  renderChips(); await buildFilterSlots(); render();
+});
+$("#pitStatSeg").querySelectorAll("button").forEach(b => b.onclick = () => {
+  S.pitStat = b.dataset.ps;
+  $("#pitStatSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x===b));
+  S.sort = {}; S.colFilters = {seasons:[], careers:[], topn:[], teams:[]};
+  S.topMetric = "bppa"; S.topDir = null; S.topMinSpan = null; S.topMinIP = null;
+  render();
+});
+$("#tabs").querySelectorAll("button").forEach(b => b.onclick = () => {
+  S.tab = b.dataset.tab; S.drill = null;
+  $("#tabs").querySelectorAll("button").forEach(x => x.classList.toggle("on", x===b));
+  render();
+});
+$("#yrFrom").onchange = e => { S.yrFrom = +e.target.value||1900; render(); };
+$("#yrTo").onchange   = e => { S.yrTo   = +e.target.value||2026; render(); };
+$("#minPA").onchange  = e => { S.minPA  = Math.max(0, +e.target.value||0); render(); };
+$("#nglTog").onchange = e => { S.ngl = e.target.checked; render(); };
+let searchT; $("#search").oninput = e => { clearTimeout(searchT); searchT = setTimeout(() => { S.search = e.target.value; render(); }, 300); };
+
+boot();
+</script>
+</body>
+</html>
